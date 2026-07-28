@@ -14,10 +14,18 @@ load_and_validate_inventory() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
 
-    cleaned=$(echo "$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
+    # Trim leading/trailing whitespace with Bash parameter expansion.
+    cleaned=$line
+    cleaned=${cleaned#"${cleaned%%[![:space:]]*}"}
+    cleaned=${cleaned%"${cleaned##*[![:space:]]}"}
+    # Strip an inline trailing comment (e.g. "host  # note").
+    cleaned=${cleaned%%[[:space:]]#*}
+    cleaned=${cleaned%"${cleaned##*[![:space:]]}"}
     [[ -z "$cleaned" ]] && continue
 
-    if [[ "$cleaned" =~ [[:space:]\;\&\|\>\<\$\`] ]]; then
+    # Reject anything that is not a plausible hostname/IP: shell metacharacters
+    # or whitespace would be dangerous once interpolated into a remote command.
+    if [[ "$cleaned" =~ [[:space:]\;\&\|\>\<\$\`\(\)\{\}\'\"] ]]; then
       log_warn "Skipping invalid inventory entry: $cleaned"
       continue
     fi

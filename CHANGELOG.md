@@ -6,6 +6,53 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Path-traversal in check selection closed.** Check names are now validated
+  against `^[A-Za-z0-9_-]+$` before a module is resolved, so a crafted name such
+  as `../common` can no longer source a `.sh` file outside `lib/checks/`.
+- Inventory validation additionally rejects `()`, `{}` and quote characters.
+
+### Added
+- **Documentation site + GitHub Pages CI/CD.** A dependency-light generator
+  (`scripts/build_docs.py`) renders the Markdown under `docs/` into a styled,
+  responsive, theme-aware (light/dark) site with nav search, per-page tables of
+  contents and copy-to-clipboard code blocks. `.github/workflows/docs.yml`
+  builds and deploys it to GitHub Pages on merge to `main`; CI verifies the
+  build on every PR.
+- **New check modules:** `ntp`, `license`, `diskspace`, `ha`, plus
+  `docs/MODULES.md` cataloguing them and a roadmap of proposed modules.
+- **CLI safety & UX:** `--list-checks`, `--yes/-y`, `--no-color`,
+  "did you mean…?" suggestions for mistyped checks, a Bash version guard, a
+  diagnostic `ERR` trap, and a colour-coded end-of-run summary.
+- **Confirmation gate** for high-impact runs (real execution against `prod` or
+  ≥ 50 devices); refuses to proceed unattended unless `--yes` is given.
+- **Bash tab-completion** (`completions/check_multi.bash`) for options, checks,
+  environments and file paths.
+- New wiki-style docs pages: `USAGE`, `CONFIGURATION`, `TROUBLESHOOTING`, `FAQ`.
+- **Expanded tests** (17 → 44): CLI integration, argument validation, check
+  discovery/registry, module contract, and validation helpers.
+- `lib/registry.sh` for check discovery and name validation; `make docs`,
+  `make docs-serve` targets.
+
+### Fixed
+- **CLI options were overridden by YAML.** `load_config`/profiles ran after
+  argument parsing and clobbered flags such as `-t/--threads`; CLI values are
+  now captured and re-applied last so an explicit flag always wins.
+- **Silent bad `--threads`.** Non-integer or zero thread counts are now rejected
+  with a clear message instead of being ignored.
+- **Options missing their value** (e.g. a trailing `-t`) now produce a friendly
+  error instead of tripping `set -u`.
+
+### Changed
+- Inventory whitespace trimming uses Bash parameter expansion (no `echo | sed`)
+  and supports inline `#` comments.
+- `Makefile` `smoke` target and the CI smoke job discover checks dynamically, so
+  new modules are covered automatically.
+
+---
+
+### (Earlier, merged in #1)
+
 ### Fixed
 - **`summary.json` device records were empty.** In `lib/summary.sh` the per-device
   `printf` calls were missing their `>> "$tmp"` redirection, so every device

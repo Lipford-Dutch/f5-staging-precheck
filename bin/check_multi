@@ -2,12 +2,19 @@
 # check_multi 2.0.0-alpha – Enterprise Device Audit Framework
 set -euo pipefail
 
+# Require Bash 4+ (associative arrays, mapfile, ${var,,} used across the tool).
+if (( BASH_VERSINFO[0] < 4 )); then
+  echo "check_multi requires Bash 4 or newer (found ${BASH_VERSION})." >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly SCRIPT_DIR
 readonly VERSION="2.0.0-alpha"
 
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/registry.sh"
 source "${SCRIPT_DIR}/lib/config.sh"
 source "${SCRIPT_DIR}/lib/ssh.sh"
 source "${SCRIPT_DIR}/lib/inventory.sh"
@@ -20,42 +27,64 @@ DRY_RUN=false
 VERBOSE=false
 EXCEL_OUTPUT=false
 USE_PASSWORD=false
+ASSUME_YES=false
 ENV_NAME="lab"
 MAX_THREADS=12
+# CLI-supplied overrides are captured separately and re-applied AFTER config and
+# environment profiles load, so an explicit flag always wins over YAML.
+MAX_THREADS_CLI=""
 OUTPUT_DIR=""
 SSH_USER=""
 CHECK_NAME=""
 INVENTORY_FILE=""
 CONFIG_FILE="${SCRIPT_DIR}/config/defaults.yaml"
 OUTPUT_BASE="./results"
+# Runs at/above this device count trigger a confirmation prompt.
+CONFIRM_DEVICE_THRESHOLD=50
 
 usage() {
+  local checks
+  checks="$(list_available_checks | tr '\n' ' ')"
   cat << EOF
-${BLD}check_multi${RST} ${VERSION}
+${BLD}check_multi${RST} ${VERSION} – Enterprise Device Audit Framework
 
-USAGE
+${BLD}USAGE${RST}
   check_multi [OPTIONS] <check_name> <inventory_file>
 
-OPTIONS
+${BLD}OPTIONS${RST}
   -h, --help              Show help
-  -d, --dry-run           No SSH connections
+  -d, --dry-run           No SSH connections (safe preview)
   -v, --verbose           Debug logging
-  -t, --threads <N>       Max parallel sessions
+  -t, --threads <N>       Max parallel sessions (positive integer)
   -o, --output-dir <DIR>  Results directory
-  -e, --env <lab|prod>    Environment profile
+  -e, --env <name>        Environment profile (config/environments/<name>.yaml)
   -c, --config <FILE>     Custom defaults.yaml
   -u, --user <USER>       SSH username
-  -p, --password          Password auth (INSECURE)
-  --excel                 Generate executive Excel report
-  --version               Print version
+  -p, --password          Password auth (INSECURE – prefer SSH keys)
+  -y, --yes               Assume "yes" for confirmation prompts (unattended)
+      --excel             Generate executive Excel report
+      --no-color          Disable coloured output
+      --list-checks       List available check modules and exit
+      --version           Print version and exit
 
-CHECKS
-  platform  umm  certs  keys  syncgroup  network  preflight
+${BLD}CHECKS${RST}
+  ${checks}
 
-EXAMPLES
+${BLD}EXAMPLES${RST}
   check_multi --dry-run platform examples/devices.txt
   check_multi -e prod -t 20 --excel certs inventory/prod.txt
+  check_multi --list-checks
+
+${BLD}EXIT CODES${RST}
+  0 success   1 usage/config error   4 one or more device checks failed
 EOF
+}
+
+# _need_value <option> <count-remaining> – guard against a flag missing its
+# argument (which would otherwise trip `set -u` with a cryptic message).
+_need_value() {
+  local opt=$1 remaining=$2
+  (( remaining >= 2 )) || die "Option '${opt}' requires a value"
 }
 
 parse_args() {
@@ -63,24 +92,73 @@ parse_args() {
     case "$1" in
       -h|--help) usage; exit 0 ;;
       --version) echo "check_multi ${VERSION}"; exit 0 ;;
+      --list-checks)
+        echo "Available checks:"
+        list_available_checks | sed 's/^/  - /'
+        exit 0 ;;
       -d|--dry-run) DRY_RUN=true; shift ;;
       -v|--verbose) VERBOSE=true; shift ;;
-      -t|--threads) MAX_THREADS="$2"; shift 2 ;;
-      -o|--output-dir) OUTPUT_DIR="$2"; shift 2 ;;
-      -e|--env) ENV_NAME="$2"; shift 2 ;;
-      -c|--config) CONFIG_FILE="$2"; shift 2 ;;
-      -u|--user) SSH_USER="$2"; shift 2 ;;
+      -y|--yes) ASSUME_YES=true; shift ;;
+      --no-color) NO_COLOR=1; init_colors; shift ;;
+      -t|--threads) _need_value "$1" $#; MAX_THREADS_CLI="$2"; shift 2 ;;
+      -o|--output-dir) _need_value "$1" $#; OUTPUT_DIR="$2"; shift 2 ;;
+      -e|--env) _need_value "$1" $#; ENV_NAME="$2"; shift 2 ;;
+      -c|--config) _need_value "$1" $#; CONFIG_FILE="$2"; shift 2 ;;
+      -u|--user) _need_value "$1" $#; SSH_USER="$2"; shift 2 ;;
       -p|--password) USE_PASSWORD=true; shift ;;
       --excel) EXCEL_OUTPUT=true; shift ;;
       --) shift; break ;;
-      -*) die "Unknown option: $1" ;;
+      -*) die "Unknown option: $1 (try --help)" ;;
       *) break ;;
     esac
   done
 
-  [[ $# -ge 2 ]] || { usage; exit 1; }
+  if [[ $# -lt 2 ]]; then
+    log_error "Expected <check_name> and <inventory_file>"
+    usage
+    exit 1
+  fi
   CHECK_NAME="$1"
   INVENTORY_FILE="$2"
+}
+
+# Validate everything we can before touching the network, so operator mistakes
+# fail fast with actionable messages instead of mid-run.
+# Re-apply CLI overrides on top of values loaded from YAML config/profiles.
+apply_cli_overrides() {
+  if [[ -n "$MAX_THREADS_CLI" ]]; then
+    MAX_THREADS="$MAX_THREADS_CLI"
+  fi
+  return 0
+}
+
+validate_args() {
+  export ASSUME_YES
+
+  if ! is_uint "$MAX_THREADS" || (( MAX_THREADS < 1 )); then
+    die "--threads must be a positive integer (got: '${MAX_THREADS}')"
+  fi
+
+  if ! check_module_exists "$CHECK_NAME"; then
+    local suggestions
+    suggestions="$(suggest_check "$CHECK_NAME" | tr '\n' ' ')"
+    log_error "Unknown check: '${CHECK_NAME}'"
+    [[ -n "${suggestions// }" ]] && log_error "Did you mean: ${suggestions}?"
+    log_error "Run 'check_multi --list-checks' to see all checks."
+    exit 1
+  fi
+
+  [[ -f "$INVENTORY_FILE" ]] || die "Inventory file not found: ${INVENTORY_FILE}"
+  [[ -s "$INVENTORY_FILE" ]] || die "Inventory file is empty: ${INVENTORY_FILE}"
+
+  local profile="${SCRIPT_DIR}/config/environments/${ENV_NAME}.yaml"
+  if [[ ! -f "$profile" ]]; then
+    log_warn "No environment profile '${ENV_NAME}' – built-in defaults apply"
+  fi
+
+  if [[ "$USE_PASSWORD" == true ]]; then
+    require_cmd sshpass "install sshpass or use SSH keys"
+  fi
 }
 
 load_check_module() {
@@ -100,12 +178,50 @@ setup_output_dir() {
   log_info "Output directory: $OUTPUT_DIR"
 }
 
+# Guard against high-impact runs: real (non-dry-run) executions against the
+# prod profile or a large inventory require explicit confirmation.
+confirm_high_impact_run() {
+  local device_count=$1
+  [[ "$DRY_RUN" == true ]] && return 0
+
+  local reason=""
+  [[ "${ENV_NAME,,}" == "prod" ]] && reason="environment=prod"
+  if (( device_count >= CONFIRM_DEVICE_THRESHOLD )); then
+    reason="${reason:+${reason}, }${device_count} devices"
+  fi
+  [[ -z "$reason" ]] && return 0
+
+  log_warn "About to run '${CHECK_NAME}' against ${device_count} device(s) [${reason}]"
+  if ! confirm "Continue with this run?"; then
+    die "Aborted by operator"
+  fi
+}
+
+# Human-readable, colour-coded end-of-run summary.
+print_run_summary() {
+  local total=${PARALLEL_TOTAL:-0}
+  local ok=${PARALLEL_SUCCESS:-0}
+  local failed=${PARALLEL_FAILED:-0}
+  echo "" >&2
+  echo -e "${BLD}──────────── Run Summary ────────────${RST}" >&2
+  printf '  %-12s %s\n' "Check:"   "$CHECK_NAME"   >&2
+  printf '  %-12s %s\n' "Env:"     "$ENV_NAME"     >&2
+  printf '  %-12s %s\n' "Devices:" "$total"        >&2
+  printf '  %-12s %b%s%b\n' "Succeeded:" "$GRN" "$ok" "$RST" >&2
+  printf '  %-12s %b%s%b\n' "Failed:" "$( ((failed>0)) && echo "$RED" || echo "$GRN")" "$failed" "$RST" >&2
+  echo -e "${BLD}─────────────────────────────────────${RST}" >&2
+}
+
 main() {
   parse_args "$@"
+  init_colors
+  install_error_trap
   register_temp_cleanup
 
   load_config "$CONFIG_FILE"
   load_environment_profile "$ENV_NAME"
+  apply_cli_overrides
+  validate_args
   load_check_module
 
   setup_output_dir
@@ -123,6 +239,8 @@ main() {
     [[ -n "$_dev" ]] && devices+=("$_dev")
   done < "$inv_tmp"
   (( ${#devices[@]} > 0 )) || die "No devices loaded from inventory"
+
+  confirm_high_impact_run "${#devices[@]}"
 
   log_info "check_multi ${VERSION} | check=${CHECK_NAME} | devices=${#devices[@]} | env=${ENV_NAME}"
 
@@ -147,6 +265,7 @@ main() {
   fi
 
   end_audit_run
+  print_run_summary
   log_ok "Run complete → $OUTPUT_DIR"
   return "$run_rc"
 }
