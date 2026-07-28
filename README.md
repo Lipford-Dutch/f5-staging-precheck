@@ -4,9 +4,12 @@
 Multi-function, parallel SSH-based audit tool for network appliances (primarily F5 BIG-IP).
 
 [![CI](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml/badge.svg)](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml)
+[![Docs](https://github.com/willyd61/f5-staging-precheck/actions/workflows/docs.yml/badge.svg)](https://github.com/willyd61/f5-staging-precheck/actions/workflows/docs.yml)
 [![Version](https://img.shields.io/badge/Version-2.0.0--alpha-orange)]()
 [![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)]()
 [![License](https://img.shields.io/badge/License-Internal-blue)]()
+
+📖 **Documentation site:** <https://willyd61.github.io/f5-staging-precheck/>
 
 ---
 
@@ -31,7 +34,11 @@ It was completely redesigned from a legacy monolithic Bash script into a clean, 
 | Executive Excel reports        | ✅     |
 | Audit trail / run logging      | ✅     |
 | Environment profiles (lab/prod)| ✅     |
-| GitHub Actions CI skeleton     | ✅     |
+| Argument validation + safety prompts | ✅ |
+| "Did you mean…?" check suggestions | ✅ |
+| Bash tab-completion            | ✅     |
+| GitHub Actions CI (lint, tests, smoke) | ✅ |
+| Published docs site (GitHub Pages) | ✅ |
 
 ---
 
@@ -67,12 +74,21 @@ cd f5-staging-precheck
 
 ## Documentation
 
+The full, styled documentation is published to
+**[GitHub Pages](https://willyd61.github.io/f5-staging-precheck/)** and built
+from the Markdown under [`docs/`](docs/):
+
 | Document | Description |
 |----------|-------------|
-| [INSTALL.md](docs/INSTALL.md) | Detailed installation instructions |
 | [QUICKSTART.md](docs/QUICKSTART.md) | First-run guide |
+| [INSTALL.md](docs/INSTALL.md) | Detailed installation instructions |
+| [USAGE.md](docs/USAGE.md) | Full CLI reference and safety behaviours |
+| [CONFIGURATION.md](docs/CONFIGURATION.md) | YAML config, profiles, env vars |
+| [MODULES.md](docs/MODULES.md) | Check catalogue and roadmap |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical design |
 | [SECURITY.md](docs/SECURITY.md) | Security model and recommendations |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+| [FAQ.md](docs/FAQ.md) | Frequently asked questions |
 
 ---
 
@@ -89,26 +105,22 @@ check_multi_2.0/
 │   ├── config.sh                # YAML config loader
 │   ├── audit.sh                 # Run audit trail
 │   ├── summary.sh               # summary.json generator
+│   ├── registry.sh              # Check discovery + name validation
 │   └── checks/                  # Plugin check modules
-│       ├── platform.sh
-│       ├── umm.sh
-│       ├── certs.sh
-│       ├── keys.sh
-│       ├── syncgroup.sh
-│       ├── network.sh
-│       └── preflight.sh
+│       ├── platform.sh  umm.sh  certs.sh  keys.sh
+│       ├── syncgroup.sh network.sh preflight.sh
+│       └── ntp.sh  license.sh  diskspace.sh  ha.sh
 ├── config/
 │   ├── defaults.yaml
-│   └── environments/
-│       ├── lab.yaml
-│       └── prod.yaml
+│   └── environments/{lab,prod}.yaml
+├── completions/check_multi.bash   # Bash tab-completion
 ├── scripts/
 │   ├── generate_excel_report.py
+│   ├── build_docs.py            # Static docs-site generator → site/
 │   └── shellcheck_all.sh
-├── docs/
-├── examples/
-├── tests/
-└── .github/workflows/ci.yml
+├── docs/                        # Markdown → published to GitHub Pages
+├── examples/  tests/  Makefile
+└── .github/workflows/{ci.yml,docs.yml}
 ```
 
 ---
@@ -132,18 +144,41 @@ check_multi [OPTIONS] <check_name> <inventory_file>
 | `-c, --config <FILE>`     | Override defaults.yaml                   |
 | `-u, --user <USER>`       | SSH username                             |
 | `-p, --password`          | Use password auth (discouraged)          |
+| `-y, --yes`               | Assume "yes" for confirmation prompts     |
 | `--excel`                 | Generate executive Excel report          |
+| `--no-color`              | Disable coloured output (also `NO_COLOR`) |
+| `--list-checks`           | List available check modules and exit     |
 | `--version`               | Print version                            |
+
+Command-line flags always override YAML config. Real runs against `prod` or
+large inventories (≥ 50 devices) prompt for confirmation; use `-y` for
+unattended execution. See [USAGE.md](docs/USAGE.md) for full details.
 
 ### Available Checks
 
+Run `check_multi --list-checks` for the live list.
+
+- `preflight`  – Lightweight connectivity + version check
 - `platform`   – Version, build, modules, serial, telemetry
 - `umm`        – Provisioned modules
 - `certs`      – Certificate inventory
 - `keys`       – Key inventory
 - `syncgroup`  – CM sync status
 - `network`    – Interfaces & trunks
-- `preflight`  – Lightweight connectivity + version check
+- `ntp`        – NTP config and clock synchronisation
+- `license`    – Licence status and feature modules
+- `diskspace`  – Filesystem utilisation
+- `ha`         – Active/standby and failover state
+
+New checks are added by dropping a module in `lib/checks/` — see
+[MODULES.md](docs/MODULES.md).
+
+### Shell completion
+
+```bash
+# Enable tab-completion for the current shell
+source completions/check_multi.bash
+```
 
 ---
 
@@ -162,17 +197,21 @@ check_multi [OPTIONS] <check_name> <inventory_file>
 All developer tasks are wrapped in the `Makefile`:
 
 ```bash
-make lint     # ShellCheck every script (including bin/check_multi)
-make syntax   # bash -n syntax check
-make test     # bats unit tests
-make smoke    # dry-run every check module
-make check    # all of the above
-make clean    # remove ./results
+make lint        # ShellCheck every script (including bin/check_multi)
+make syntax      # bash -n syntax check
+make test        # bats unit tests
+make smoke       # dry-run every check module (auto-discovered)
+make check       # all of the above
+make docs        # build the documentation site into ./site
+make docs-serve  # build + serve docs at http://localhost:8000
+make clean       # remove ./results and ./site
 ```
 
 CI runs the same checks on every push and pull request (see
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Please run `make check`
-before opening a PR. Contribution guidelines live in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml)), and the documentation
+site is built and deployed to GitHub Pages on merge to `main` (see
+[`.github/workflows/docs.yml`](.github/workflows/docs.yml)). Please run
+`make check` before opening a PR. Contribution guidelines live in
 [CONTRIBUTING.md](CONTRIBUTING.md); notable changes are recorded in
 [CHANGELOG.md](CHANGELOG.md).
 

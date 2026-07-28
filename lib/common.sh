@@ -3,16 +3,21 @@
 [[ -n "${_CHECK_MULTI_COMMON_LOADED:-}" ]] && return 0
 readonly _CHECK_MULTI_COMMON_LOADED=1
 
-# Colour codes are emitted only when stdout is a TTY (and NO_COLOR is unset,
-# per https://no-color.org/). These are consumed across sourced modules and
-# bin/check_multi, so shellcheck cannot see every use.
+# Colour codes are emitted only when stderr is a TTY (all logs go to stderr)
+# and NO_COLOR is unset, per https://no-color.org/. init_colors is re-runnable
+# so a late `--no-color` flag can disable colour after the module is sourced.
+# The colour variables are consumed across other sourced modules, so the linter
+# cannot see every use (hence the disable below).
 # shellcheck disable=SC2034
-if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  RED=$'\033[0;31m'; YEL=$'\033[0;33m'; GRN=$'\033[0;32m'
-  CYN=$'\033[0;36m'; BLD=$'\033[1m'; RST=$'\033[0m'
-else
-  RED=''; YEL=''; GRN=''; CYN=''; BLD=''; RST=''
-fi
+init_colors() {
+  if [[ -t 2 && -z "${NO_COLOR:-}" ]]; then
+    RED=$'\033[0;31m'; YEL=$'\033[0;33m'; GRN=$'\033[0;32m'
+    CYN=$'\033[0;36m'; BLD=$'\033[1m'; RST=$'\033[0m'
+  else
+    RED=''; YEL=''; GRN=''; CYN=''; BLD=''; RST=''
+  fi
+}
+init_colors
 
 log_info()  { echo -e "${CYN}[INFO]${RST}  $(date +%H:%M:%S) $*" >&2; }
 log_warn()  { echo -e "${YEL}[WARN]${RST}  $(date +%H:%M:%S) $*" >&2; }
@@ -24,6 +29,43 @@ log_debug() {
 }
 
 die() { log_error "$*"; exit 1; }
+
+# Install a diagnostic trap that reports the failing command and line number.
+# Call once from the entry point after logging is available.
+install_error_trap() {
+  trap '_on_error $? $LINENO "${BASH_COMMAND}"' ERR
+}
+_on_error() {
+  local rc=$1 line=$2 cmd=$3
+  log_error "Unexpected failure (rc=${rc}) at line ${line}: ${cmd}"
+}
+
+# True when the argument is a non-negative integer.
+is_uint() { [[ ${1:-} =~ ^[0-9]+$ ]]; }
+
+# require_cmd <command> [hint] – die with a friendly message if missing.
+require_cmd() {
+  local cmd=$1 hint=${2:-}
+  command -v "$cmd" >/dev/null 2>&1 && return 0
+  die "Required command not found: ${cmd}${hint:+ (${hint})}"
+}
+
+# confirm <prompt> – interactive yes/No gate.
+# Honours ASSUME_YES=true; on a non-interactive stdin it refuses (returns 1)
+# so unattended runs cannot silently proceed through a safety prompt.
+confirm() {
+  local prompt=${1:-"Proceed?"} reply
+  if [[ ${ASSUME_YES:-false} == true ]]; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    log_error "Confirmation required but stdin is not a TTY; pass --yes to proceed"
+    return 1
+  fi
+  printf '%b%s [y/N]: %b' "${YEL}" "$prompt" "${RST}" >&2
+  read -r reply
+  [[ $reply =~ ^[Yy]([Ee][Ss])?$ ]]
+}
 
 # Temporary files are tracked in an on-disk manifest rather than a shell array.
 # make_temp is almost always invoked via command substitution — `t=$(make_temp)`

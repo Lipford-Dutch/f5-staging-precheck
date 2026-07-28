@@ -4,7 +4,7 @@
 SHELL := bash
 .DEFAULT_GOAL := help
 
-.PHONY: help lint syntax test check smoke report clean
+.PHONY: help lint syntax test check smoke report docs docs-serve clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -24,14 +24,22 @@ test: ## Run the bats unit tests
 
 smoke: ## Dry-run every check module against the example inventory
 	@set -euo pipefail; \
-	for c in preflight platform umm certs keys syncgroup network; do \
+	for c in $$(./bin/check_multi --list-checks | sed 's/^[[:space:]]*-[[:space:]]*//;1d'); do \
 		echo ">> dry-run $$c"; \
 		./bin/check_multi --dry-run $$c examples/devices.txt >/dev/null; \
 	done; \
+	rm -rf results; \
 	echo "Smoke OK"
 
 check: lint syntax test smoke ## Run the full local verification suite
 
-clean: ## Remove generated results
-	rm -rf results
+docs: ## Build the static documentation site into ./site
+	python3 scripts/build_docs.py --out site
+
+docs-serve: docs ## Build docs and serve them locally on :8000
+	@echo "Serving http://localhost:8000 (Ctrl-C to stop)"
+	@cd site && python3 -m http.server 8000
+
+clean: ## Remove generated results and site
+	rm -rf results site
 	@echo "Cleaned"
