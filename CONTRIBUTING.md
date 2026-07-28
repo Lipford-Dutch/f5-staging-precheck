@@ -38,6 +38,20 @@ This runs, in order:
 CI (`.github/workflows/ci.yml`) runs the same checks plus a Python-based Excel
 report smoke test on every push and pull request.
 
+## Documentation
+
+Docs live as Markdown under `docs/` and are published to GitHub Pages. Preview
+your changes locally with:
+
+```bash
+pip install -r requirements-docs.txt
+make docs-serve   # http://localhost:8000
+```
+
+Adding a `docs/<name>.md` file automatically creates a new site page; give it a
+`# Heading` (used as the title) and it appears in the navigation. Links between
+docs should use relative `*.md` paths — the generator rewrites them to `.html`.
+
 ## Coding conventions
 
 - **Shell:** `bash` with `set -euo pipefail` in executables. Two-space indent

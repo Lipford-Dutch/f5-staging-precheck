@@ -1,0 +1,3 @@
+# Documentation-site build dependencies (see scripts/build_docs.py)
+Markdown>=3.5
+Pygments>=2.17

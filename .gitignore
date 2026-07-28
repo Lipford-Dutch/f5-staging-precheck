@@ -1,4 +1,5 @@
 results/
+site/
 *.log
 *.xlsx
 __pycache__/
