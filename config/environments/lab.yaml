@@ -1,0 +1,4 @@
+ssh:
+  strict_host_key_checking: false
+  retries: 1
+max_threads: 8

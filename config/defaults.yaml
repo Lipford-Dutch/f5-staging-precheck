@@ -1,0 +1,14 @@
+max_threads: 12
+ssh:
+  connect_timeout: 8
+  command_timeout: 45
+  retries: 2
+  backoff_seconds: 3
+  strict_host_key_checking: false
+output:
+  base_dir: "./results"
+  keep_days: 30
+logging:
+  level: info
+audit:
+  enabled: true

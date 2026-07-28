@@ -1,0 +1,7 @@
+ssh:
+  strict_host_key_checking: true
+  retries: 3
+  backoff_seconds: 5
+max_threads: 20
+logging:
+  level: warn
