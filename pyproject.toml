@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bigip-precheck"
+version = "0.1.0"
+description = "Read-only pre-upgrade / change-window readiness validator for F5 BIG-IP LTM & GTM (iControl REST + SNMP)."
+readme = "src/bigip_precheck/README.md"
+requires-python = ">=3.11"
+license = { text = "Internal" }
+authors = [{ name = "Platform Engineering / Network Automation" }]
+keywords = ["f5", "big-ip", "ltm", "gtm", "icontrol", "upgrade", "preflight"]
+
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "pydantic>=2.6",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[project.scripts]
+bigip-precheck = "bigip_precheck.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+bigip_precheck = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer's declarative CLI relies on function-call defaults (B008); the long
+# lines in the CLI are option help strings kept inline for readability.
+"src/bigip_precheck/cli.py" = ["B008", "E501"]
+# Fixtures deliberately hold verbatim iControl payloads.
+"tests/python/fixtures/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["bigip_precheck"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+addopts = "-ra"
