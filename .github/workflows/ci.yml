@@ -100,3 +100,27 @@ jobs:
           JSON
           python3 scripts/generate_excel_report.py results/summary.json results/report.xlsx
           test -s results/report.xlsx && echo "Excel report generated"
+
+  docs-build:
+    name: Docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build dependencies
+        run: pip install -r requirements-docs.txt
+      - name: Build documentation site
+        run: python3 scripts/build_docs.py --out site
+      - name: Verify expected pages were generated
+        run: |
+          set -euo pipefail
+          for f in index.html USAGE.html CONFIGURATION.html MODULES.html assets/style.css; do
+            test -s "site/$f" || { echo "missing site/$f"; exit 1; }
+          done
+          # Fail if any relative Markdown link survived into the built HTML.
+          if grep -rEo 'href="[^"]+\.md"' site/ | grep -v '://'; then
+            echo "Un-rewritten .md link found in built site"; exit 1
+          fi
+          echo "Docs build OK"
