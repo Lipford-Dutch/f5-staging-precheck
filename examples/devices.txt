@@ -1,0 +1,6 @@
+# Example inventory – one device per line
+# Lines starting with # are ignored
+
+f5-lab-01.example.com
+f5-lab-02.example.com
+# f5-lab-03.example.com   # temporarily excluded

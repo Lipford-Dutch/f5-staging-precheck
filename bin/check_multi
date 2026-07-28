@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# check_multi 2.0.0-alpha – Enterprise Device Audit Framework
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly SCRIPT_DIR
+readonly VERSION="2.0.0-alpha"
+
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/config.sh"
+source "${SCRIPT_DIR}/lib/ssh.sh"
+source "${SCRIPT_DIR}/lib/inventory.sh"
+source "${SCRIPT_DIR}/lib/parallel.sh"
+source "${SCRIPT_DIR}/lib/audit.sh"
+source "${SCRIPT_DIR}/lib/summary.sh"
+
+# Defaults
+DRY_RUN=false
+VERBOSE=false
+EXCEL_OUTPUT=false
+USE_PASSWORD=false
+ENV_NAME="lab"
+MAX_THREADS=12
+OUTPUT_DIR=""
+SSH_USER=""
+CHECK_NAME=""
+INVENTORY_FILE=""
+CONFIG_FILE="${SCRIPT_DIR}/config/defaults.yaml"
+OUTPUT_BASE="./results"
+
+usage() {
+  cat << EOF
+${BLD}check_multi${RST} ${VERSION}
+
+USAGE
+  check_multi [OPTIONS] <check_name> <inventory_file>
+
+OPTIONS
+  -h, --help              Show help
+  -d, --dry-run           No SSH connections
+  -v, --verbose           Debug logging
+  -t, --threads <N>       Max parallel sessions
+  -o, --output-dir <DIR>  Results directory
+  -e, --env <lab|prod>    Environment profile
+  -c, --config <FILE>     Custom defaults.yaml
+  -u, --user <USER>       SSH username
+  -p, --password          Password auth (INSECURE)
+  --excel                 Generate executive Excel report
+  --version               Print version
+
+CHECKS
+  platform  umm  certs  keys  syncgroup  network  preflight
+
+EXAMPLES
+  check_multi --dry-run platform examples/devices.txt
+  check_multi -e prod -t 20 --excel certs inventory/prod.txt
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help) usage; exit 0 ;;
+      --version) echo "check_multi ${VERSION}"; exit 0 ;;
+      -d|--dry-run) DRY_RUN=true; shift ;;
+      -v|--verbose) VERBOSE=true; shift ;;
+      -t|--threads) MAX_THREADS="$2"; shift 2 ;;
+      -o|--output-dir) OUTPUT_DIR="$2"; shift 2 ;;
+      -e|--env) ENV_NAME="$2"; shift 2 ;;
+      -c|--config) CONFIG_FILE="$2"; shift 2 ;;
+      -u|--user) SSH_USER="$2"; shift 2 ;;
+      -p|--password) USE_PASSWORD=true; shift ;;
+      --excel) EXCEL_OUTPUT=true; shift ;;
+      --) shift; break ;;
+      -*) die "Unknown option: $1" ;;
+      *) break ;;
+    esac
+  done
+
+  [[ $# -ge 2 ]] || { usage; exit 1; }
+  CHECK_NAME="$1"
+  INVENTORY_FILE="$2"
+}
+
+load_check_module() {
+  local mod="${SCRIPT_DIR}/lib/checks/${CHECK_NAME}.sh"
+  [[ -f "$mod" ]] || die "Check module not found: $CHECK_NAME"
+  # shellcheck source=/dev/null
+  source "$mod"
+  declare -F run_check >/dev/null || die "Module $CHECK_NAME missing run_check()"
+}
+
+setup_output_dir() {
+  if [[ -z "$OUTPUT_DIR" ]]; then
+    OUTPUT_DIR="${OUTPUT_BASE}/$(date +%Y%m%d_%H%M%S)_${CHECK_NAME}"
+  fi
+  mkdir -p "$OUTPUT_DIR"
+  chmod 0750 "$OUTPUT_DIR"
+  log_info "Output directory: $OUTPUT_DIR"
+}
+
+main() {
+  parse_args "$@"
+  register_temp_cleanup
+
+  load_config "$CONFIG_FILE"
+  load_environment_profile "$ENV_NAME"
+  load_check_module
+
+  setup_output_dir
+  prompt_password_if_needed
+  print_ssh_security_banner
+
+  start_audit_run
+
+  # Portable inventory load (avoids process-substitution issues on some systems)
+  local -a devices=()
+  local _dev inv_tmp
+  inv_tmp=$(make_temp)
+  load_and_validate_inventory "$INVENTORY_FILE" > "$inv_tmp" || die "Failed to load inventory"
+  while IFS= read -r _dev; do
+    [[ -n "$_dev" ]] && devices+=("$_dev")
+  done < "$inv_tmp"
+  (( ${#devices[@]} > 0 )) || die "No devices loaded from inventory"
+
+  log_info "check_multi ${VERSION} | check=${CHECK_NAME} | devices=${#devices[@]} | env=${ENV_NAME}"
+
+  local run_rc=0
+  run_parallel_checks "$CHECK_NAME" "${devices[@]}" || run_rc=$?
+
+  local summary_json
+  summary_json=$(generate_summary_json)
+
+  if [[ "$EXCEL_OUTPUT" == true ]]; then
+    local excel_path="${OUTPUT_DIR}/Device_Audit_Report_$(date +%Y%m%d_%H%M).xlsx"
+    if command -v python3 >/dev/null && [[ -f "${SCRIPT_DIR}/scripts/generate_excel_report.py" ]]; then
+      python3 "${SCRIPT_DIR}/scripts/generate_excel_report.py" "$summary_json" "$excel_path" \
+        && log_ok "Excel report → $excel_path" \
+        || log_error "Excel report generation failed"
+    else
+      log_warn "Excel requested but python3 or reporter script missing"
+    fi
+  fi
+
+  end_audit_run
+  log_ok "Run complete → $OUTPUT_DIR"
+  return "$run_rc"
+}
+
+main "$@"
