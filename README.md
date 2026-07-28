@@ -19,6 +19,14 @@ Multi-function, parallel SSH-based audit tool for network appliances (primarily 
 
 It was completely redesigned from a legacy monolithic Bash script into a clean, extensible architecture following industry best practices.
 
+> **New:** [`bigip-precheck`](src/bigip_precheck/README.md) is a Python,
+> **iControl REST**–driven companion focused on **pre-upgrade / change-window
+> readiness** for LTM & GTM. Where `check_multi` runs fast SSH/tmsh sweeps,
+> `bigip-precheck` performs deeper REST checks and emits a per-device and overall
+> **GO / NO-GO** verdict with a full audit trail. See its
+> [README](src/bigip_precheck/README.md) and
+> [architecture](docs/bigip-precheck/ARCHITECTURE.md). *(alpha; phase A)*
+
 ### Key Features (Alpha)
 
 | Feature                        | Status |
