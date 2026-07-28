@@ -1,0 +1,9 @@
+# ShellCheck configuration for check_multi
+# https://github.com/koalaman/shellcheck/wiki
+
+# Follow `source` directives across files where possible.
+source-path=SCRIPTDIR
+
+# SC1091: sourced files are resolved dynamically at runtime (check modules,
+# environment profiles); do not fail the build when they cannot be followed.
+disable=SC1091

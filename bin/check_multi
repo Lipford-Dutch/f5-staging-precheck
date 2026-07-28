@@ -133,11 +133,14 @@ main() {
   summary_json=$(generate_summary_json)
 
   if [[ "$EXCEL_OUTPUT" == true ]]; then
-    local excel_path="${OUTPUT_DIR}/Device_Audit_Report_$(date +%Y%m%d_%H%M).xlsx"
+    local excel_path
+    excel_path="${OUTPUT_DIR}/Device_Audit_Report_$(date +%Y%m%d_%H%M).xlsx"
     if command -v python3 >/dev/null && [[ -f "${SCRIPT_DIR}/scripts/generate_excel_report.py" ]]; then
-      python3 "${SCRIPT_DIR}/scripts/generate_excel_report.py" "$summary_json" "$excel_path" \
-        && log_ok "Excel report → $excel_path" \
-        || log_error "Excel report generation failed"
+      if python3 "${SCRIPT_DIR}/scripts/generate_excel_report.py" "$summary_json" "$excel_path"; then
+        log_ok "Excel report → $excel_path"
+      else
+        log_error "Excel report generation failed"
+      fi
     else
       log_warn "Excel requested but python3 or reporter script missing"
     fi
