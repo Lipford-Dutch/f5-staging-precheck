@@ -1,0 +1,9 @@
+results/
+*.log
+*.xlsx
+__pycache__/
+*.pyc
+.SSHPASS
+.DS_Store
+.venv/
+*.local.yaml
