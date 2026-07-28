@@ -34,7 +34,7 @@ run_parallel_checks() {
       if run_check "$device" >/dev/null 2>&1; then
         echo "SUCCESS $device" >> "$results_file"
       else
-        echo "FAILED  $device" >> "$results_file"
+        echo "FAILED $device" >> "$results_file"
       fi
     ) &
   done

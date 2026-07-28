@@ -3,8 +3,9 @@
 **Enterprise Device Audit Framework**  
 Multi-function, parallel SSH-based audit tool for network appliances (primarily F5 BIG-IP).
 
+[![CI](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml/badge.svg)](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/Version-2.0.0--alpha-orange)]()
-[![ShellCheck](https://img.shields.io/badge/ShellCheck-ready-brightgreen)]()
+[![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)]()
 [![License](https://img.shields.io/badge/License-Internal-blue)]()
 
 ---
@@ -34,14 +35,23 @@ It was completely redesigned from a legacy monolithic Bash script into a clean, 
 
 ---
 
+## Requirements
+
+| Tool | Purpose | Required |
+|------|---------|----------|
+| `bash` ≥ 4 | Runtime | Yes |
+| `ssh` / OpenSSH | Device access | Yes |
+| `yq` (mikefarah) | YAML config/profiles | Optional (falls back to built-in defaults) |
+| `python3` + `openpyxl` | `--excel` reports | Optional |
+| `sshpass` | Password auth (`-p`, discouraged) | Optional |
+| `shellcheck`, `bats` | Development / CI | Dev only |
+
 ## Quick Start
 
 ```bash
-# Clone or extract the repository
-cd check_multi_2.0
-
-# Make the entry point executable
-chmod +x bin/check_multi
+# Clone the repository
+git clone https://github.com/willyd61/f5-staging-precheck.git
+cd f5-staging-precheck
 
 # View help
 ./bin/check_multi --help
@@ -146,6 +156,28 @@ check_multi [OPTIONS] <check_name> <inventory_file>
 5. Full audit trail of every run.
 
 ---
+
+## Development
+
+All developer tasks are wrapped in the `Makefile`:
+
+```bash
+make lint     # ShellCheck every script (including bin/check_multi)
+make syntax   # bash -n syntax check
+make test     # bats unit tests
+make smoke    # dry-run every check module
+make check    # all of the above
+make clean    # remove ./results
+```
+
+CI runs the same checks on every push and pull request (see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Please run `make check`
+before opening a PR. Contribution guidelines live in
+[CONTRIBUTING.md](CONTRIBUTING.md); notable changes are recorded in
+[CHANGELOG.md](CHANGELOG.md).
+
+Colour output is emitted only to a TTY and honours the
+[`NO_COLOR`](https://no-color.org/) convention.
 
 ## License
 

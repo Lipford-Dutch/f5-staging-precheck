@@ -39,9 +39,10 @@ generate_summary_json() {
       [[ -z "$line" ]] && continue
       local status device message duration=0
 
-      status=$(echo "$line" | awk '{print $1}')
-      device=$(echo "$line" | awk '{print $2}')
-      message=$(echo "$line" | cut -d' ' -f3- | sed 's/^[[:space:]]*//')
+      # Records are "STATUS DEVICE [message...]" with arbitrary whitespace
+      # between fields; a single read splits status/device and keeps the rest
+      # (with internal spacing preserved) as the message.
+      read -r status device message <<< "$line"
 
       [[ -z "$device" ]] && continue
 
@@ -51,12 +52,14 @@ generate_summary_json() {
         printf ',\n' >> "$tmp"
       fi
 
-      printf '    {\n' >> "$tmp"
-      printf '      "name": "%s",\n'     "$(json_escape "$device")"
-      printf '      "status": "%s",\n'   "$(json_escape "$status")"
-      printf '      "duration": %s,\n'   "$duration"
-      printf '      "message": "%s"\n'   "$(json_escape "$message")"
-      printf '    }' >> "$tmp"
+      {
+        printf '    {\n'
+        printf '      "name": "%s",\n'     "$(json_escape "$device")"
+        printf '      "status": "%s",\n'   "$(json_escape "$status")"
+        printf '      "duration": %s,\n'   "$duration"
+        printf '      "message": "%s"\n'   "$(json_escape "$message")"
+        printf '    }'
+      } >> "$tmp"
     done < "$results_file"
   fi
 
