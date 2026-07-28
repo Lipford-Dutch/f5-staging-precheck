@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run ShellCheck
+        run: ./scripts/shellcheck_all.sh
+
+  syntax:
+    name: Bash syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax check
+        run: |
+          find . -name '*.sh' -not -path './results/*' -print0 \
+            | xargs -0 -n1 bash -n
+          bash -n bin/check_multi
+          echo "Syntax check passed"
+
+  unit-tests:
+    name: Bats unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Run tests
+        run: ./tests/run_tests.sh
+
+  smoke:
+    name: Dry-run smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+      - name: Dry-run every check module
+        run: |
+          set -euo pipefail
+          for check in preflight platform umm certs keys syncgroup network; do
+            echo "::group::dry-run ${check}"
+            ./bin/check_multi --dry-run "${check}" examples/devices.txt
+            echo "::endgroup::"
+          done
+      - name: Validate generated summary.json
+        run: |
+          set -euo pipefail
+          summary="$(find results -name summary.json | sort | tail -1)"
+          echo "Validating ${summary}"
+          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['devices'] and all(x['name'] for x in d['devices']), 'empty device records'; print('summary.json OK:', len(d['devices']), 'devices')" "${summary}"
+
+  report:
+    name: Excel report generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install reporter dependencies
+        run: pip install openpyxl
+      - name: Generate a report from a fixture summary
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          cat > results/summary.json <<'JSON'
+          {
+            "run_id": "ci", "timestamp": "2026-01-01T00:00:00+00:00",
+            "user": "ci", "host": "ci", "check": "platform",
+            "environment": "lab", "inventory": "examples/devices.txt",
+            "version": "ci", "dry_run": true, "threads": 1,
+            "total": 2, "success": 1, "failed": 1, "success_rate": 50.0,
+            "devices": [
+              {"name": "a.example.com", "status": "SUCCESS", "duration": 0, "message": ""},
+              {"name": "b.example.com", "status": "FAILED", "duration": 0, "message": "timeout"}
+            ]
+          }
+          JSON
+          python3 scripts/generate_excel_report.py results/summary.json results/report.xlsx
+          test -s results/report.xlsx && echo "Excel report generated"

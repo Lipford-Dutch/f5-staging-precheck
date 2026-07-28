@@ -5,11 +5,13 @@ readonly _CHECK_MULTI_AUDIT_LOADED=1
 
 AUDIT_RUN_ID=""
 AUDIT_FILE=""
+AUDIT_TIMESTAMP_START=""
 
 start_audit_run() {
   [[ ${AUDIT_ENABLED:-true} == true ]] || return 0
 
   AUDIT_RUN_ID="$(date +%Y%m%d_%H%M%S)_$$"
+  AUDIT_TIMESTAMP_START="$(date -Iseconds)"
   local audit_dir="${OUTPUT_DIR}/audit"
   mkdir -p "$audit_dir"
   chmod 0750 "$audit_dir"
@@ -19,7 +21,7 @@ start_audit_run() {
   cat > "$AUDIT_FILE" <<EOF
 {
   "run_id": "$(json_escape "$AUDIT_RUN_ID")",
-  "timestamp_start": "$(date -Iseconds)",
+  "timestamp_start": "$AUDIT_TIMESTAMP_START",
   "user": "$(json_escape "${USER:-unknown}")",
   "host": "$(json_escape "$(hostname 2>/dev/null || echo unknown)")",
   "check": "$(json_escape "${CHECK_NAME:-}")",
@@ -45,7 +47,7 @@ end_audit_run() {
   cat > "$AUDIT_FILE" <<EOF
 {
   "run_id": "$(json_escape "$AUDIT_RUN_ID")",
-  "timestamp_start": "$(date -Iseconds)",
+  "timestamp_start": "${AUDIT_TIMESTAMP_START:-$(date -Iseconds)}",
   "timestamp_end": "$(date -Iseconds)",
   "user": "$(json_escape "${USER:-unknown}")",
   "check": "$(json_escape "${CHECK_NAME:-}")",
