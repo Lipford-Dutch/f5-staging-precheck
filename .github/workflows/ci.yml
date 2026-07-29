@@ -101,6 +101,25 @@ jobs:
           python3 scripts/generate_excel_report.py results/summary.json results/report.xlsx
           test -s results/report.xlsx && echo "Excel report generated"
 
+  python:
+    name: bigip-precheck (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package (with dev extras)
+        run: pip install -e '.[dev]'
+      - name: Ruff lint
+        run: python -m ruff check src tests
+      - name: Mypy (strict)
+        run: python -m mypy
+      - name: Pytest + coverage
+        run: python -m pytest --cov=bigip_precheck --cov-report=term-missing
+      - name: CLI smoke — validate example inventory
+        run: python -m bigip_precheck.cli validate-config examples/bigip-precheck/inventory.yaml
+
   docs-build:
     name: Docs build
     runs-on: ubuntu-latest

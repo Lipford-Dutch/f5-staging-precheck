@@ -1,0 +1,69 @@
+# Example bigip-precheck inventory.
+#
+# Secrets are NEVER stored here. Each device names a `credential`; the actual
+# username/password (or token) is resolved at runtime from environment
+# variables, e.g. for credential "default":
+#
+#   export BIGIP_DEFAULT_USERNAME=admin
+#   export BIGIP_DEFAULT_PASSWORD='...'          # or BIGIP_DEFAULT_TOKEN=...
+#
+# A generic BIGIP_USERNAME / BIGIP_PASSWORD is used as a fallback.
+
+settings:
+  max_workers: 8
+  connect_timeout_s: 10
+  request_timeout_s: 30
+  retries: 2
+  backoff_base_s: 1.0
+  verify_tls: true
+  output_dir: ./results/bigip-precheck
+
+thresholds:
+  min_free_disk_pct: 20
+  cert_expiry_warn_days: 30
+  cert_expiry_fail_days: 7
+  max_cpu_pct: 85
+  license_expiry_warn_days: 30
+
+devices:
+  # An HA pair. The `ha:pair1` tag groups them so the standby is checked first.
+  - name: bigip-a.lab.example.com
+    host: 10.0.0.11
+    roles: [LTM, HA]
+    credential: default
+    tags: [ha:pair1, standby, prod]
+
+  - name: bigip-b.lab.example.com
+    host: 10.0.0.12
+    roles: [LTM, HA]
+    credential: default
+    tags: [ha:pair1, active, prod]
+
+  # A standalone GTM.
+  - name: gtm-1.lab.example.com
+    host: 10.0.0.20
+    roles: [GTM]
+    credential: default
+    tags: [gtm-sync-group-a]
+
+profiles:
+  quick:
+    name: quick
+    description: Fast connectivity + version + failover snapshot.
+    checks: [system.version, ha.failover-status]
+
+  full:
+    name: full
+    description: Every system and HA readiness check.
+    checks:
+      - system.version
+      - system.license
+      - system.provisioning
+      - system.boot-volumes
+      - ha.failover-status
+      - ha.sync-status
+
+  ha-only:
+    name: ha-only
+    description: HA / device-group state only.
+    checks: [ha.failover-status, ha.sync-status]
