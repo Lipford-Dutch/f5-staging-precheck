@@ -6,6 +6,31 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`bigip-precheck` — new Python upgrade-readiness validator (phase A / alpha).**
+  A read-only, iControl REST–driven companion to the Bash `check_multi` tool that
+  produces a per-device and overall **GO / NO-GO** verdict before an upgrade or
+  change window. Highlights:
+  - System checks (`system.version`, `system.license`, `system.provisioning`,
+    `system.boot-volumes`) and HA checks (`ha.failover-status`, `ha.sync-status`).
+  - Token-authenticated REST client with retry/backoff+jitter and a TMOS version
+    probe; checkers depend on a `RestClient` protocol so the suite runs with no lab.
+  - Orchestration that evaluates the **standby member before the active** within
+    an HA group and records dependency-blocked checks as explicit `SKIP`s.
+  - Design bias *never a silent PASS*: a check that cannot confirm health degrades
+    to `WARN`/`FAIL`, and an unexpected checker error becomes a `FAIL`.
+  - Full audit trail (redacted JSONL + human log), SHA-256 report integrity
+    sidecar, Rich console dashboard and schema-versioned JSON report.
+  - Typer CLI (`run`, `list-checks`, `validate-config`, `version`) with CI mode
+    and exit codes `0` GO / `2` NO-GO / `3` config error.
+  - 50 offline tests (pytest), `ruff` + strict `mypy` clean, and a dedicated CI
+    job. Secrets are resolved from the environment and never stored in config.
+  - See [`src/bigip_precheck/README.md`](src/bigip_precheck/README.md),
+    [`docs/bigip-precheck/ARCHITECTURE.md`](docs/bigip-precheck/ARCHITECTURE.md)
+    and [`docs/bigip-precheck/TESTING.md`](docs/bigip-precheck/TESTING.md).
+    LTM/GTM checks (PR B), the SNMP cross-check layer (PR C) and richer reports
+    (PR D) follow.
+
 ### Security
 - **Path-traversal in check selection closed.** Check names are now validated
   against `^[A-Za-z0-9_-]+$` before a module is resolved, so a crafted name such
