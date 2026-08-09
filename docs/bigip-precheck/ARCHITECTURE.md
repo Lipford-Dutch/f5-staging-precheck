@@ -22,7 +22,7 @@ slot into the same seams.
 ```
 CLI (Typer)
   └─ load_inventory ──────────────► config/ (Pydantic models, secret-free)
-  └─ build_default_registry ──────► checkers/ (system, ha; LTM/GTM/SNMP later)
+  └─ build_default_registry ──────► checkers/ (system, ha, ltm, gtm; SNMP later)
   └─ Orchestrator
         ├─ group_devices ─────────► standby-before-active ordering per HA group
         ├─ RestClient (per device) ► clients/rest.py (token, retry, version probe)
@@ -63,10 +63,21 @@ through `redaction.redact` first.
 `0` GO · `2` NO-GO · `3` config error. `--ci` makes runs non-interactive and
 machine-readable; `--json` prints the report to stdout.
 
+## Object snapshots (phase B)
+
+LTM/GTM checkers record each object's availability in
+`CheckResult.evidence["objects"]`. `snapshot.build_snapshot` harvests these into
+a schema-versioned document written on every run; `snapshot.diff_snapshots`
+classifies per-object changes (regression / recovery / added / removed / changed)
+between a baseline and a later run. `run --baseline` forces NO-GO on any
+regression, and the `diff` command compares two snapshots directly.
+
+Role filtering: `orchestrator.detect_roles` keeps configured `device.roles`, else
+probes `/sys/provision` to infer LTM/GTM, falling back to LTM.
+
 ## Roadmap seams
 
-* **PR B** — `checkers/ltm.py`, `checkers/gtm.py`; role auto-detection over REST;
-  pre/post object-state snapshots.
+* **PR A** ✅ / **PR B** ✅ (this phase).
 * **PR C** — `clients/snmp.py` + `checkers/snmp_crosscheck.py`; REST↔SNMP
   discrepancy gating.
 * **PR D** — HTML/Markdown reports; report signing; TMSH `load sys config verify`
