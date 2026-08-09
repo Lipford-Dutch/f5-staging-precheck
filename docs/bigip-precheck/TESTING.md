@@ -42,9 +42,17 @@ from public F5 schemas so the suite needs no lab.
 pass unchanged. Keep one healthy and one unhealthy variant per check so both the
 GO and NO-GO paths stay covered.
 
-## Scenario matrix (phase A)
+## Scenario matrix
 
-Standalone (sync = Standalone → INFO), HA standby, HA active, expired license,
-config-sync changes-pending, single boot volume, install-in-progress,
-unreadable/timed-out REST. LTM/GTM object scenarios and the SNMP-down and
-mixed-version cases arrive with PRs B and C.
+Phase A: standalone (sync = Standalone → INFO), HA standby, HA active, expired
+license, config-sync changes-pending, single boot volume, install-in-progress,
+unreadable/timed-out REST.
+
+Phase B: virtual servers/pools/nodes all-available vs offline-while-enabled vs
+disabled; pool with zero active members; wide IPs/pools across A/AAAA/CNAME with
+some record types absent (tolerated) vs all endpoints erroring (fails); role
+auto-detection from `/sys/provision` and its LTM fallback; snapshot build,
+on-disk round-trip, and regression/recovery/added/removed diffing including the
+`run --baseline` and `diff` CLI paths.
+
+The SNMP-down and mixed-version cases arrive with PR C.

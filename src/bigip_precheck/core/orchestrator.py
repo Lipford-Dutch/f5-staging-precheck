@@ -61,12 +61,37 @@ def group_devices(devices: list[Device]) -> list[_Group]:
     return ordered
 
 
-def _detect_roles(device: Device) -> frozenset[str]:
-    """Best-effort role detection from configured hints (REST auto-detect: PR B)."""
+def detect_roles(device: Device, client: RestClient | None = None) -> frozenset[str]:
+    """Determine a device's roles for check filtering.
+
+    Configured ``device.roles`` are authoritative and always kept. When no roles
+    are configured we probe ``/sys/provision`` over REST and infer LTM/GTM from
+    the modules that are actually provisioned (level != ``none``). If the probe
+    is unavailable or fails, we fall back to LTM — the safe default — rather than
+    silently running nothing.
+    """
     roles = {r.value for r in device.roles}
-    if not roles:
-        roles = {Role.LTM.value}  # LTM is the safe default; GTM is opt-in via config.
-    return frozenset(roles)
+    if roles:
+        return frozenset(roles)
+
+    detected: set[str] = set()
+    if client is not None:
+        with contextlib.suppress(Exception):
+            data = client.get("/mgmt/tm/sys/provision")
+            items = data.get("items")
+            if isinstance(items, list):
+                for module in items:
+                    name = str(module.get("name", "")).lower()
+                    level = str(module.get("level", "none")).lower()
+                    if level == "none":
+                        continue
+                    if name == "ltm":
+                        detected.add(Role.LTM.value)
+                    elif name == "gtm":
+                        detected.add(Role.GTM.value)
+    if not detected:
+        detected = {Role.LTM.value}  # safe default: assume LTM rather than skip all
+    return frozenset(detected)
 
 
 class Orchestrator:
@@ -119,12 +144,13 @@ class Orchestrator:
         except Exception as exc:  # noqa: BLE001 - surface as a FAIL, never silent
             return [self._fatal(device.name, f"credential resolution failed: {exc}")]
 
-        roles = _detect_roles(device)
         thresholds = self._thresholds_for(device)
         client = self._factory(device, cred)
         results: list[CheckResult] = []
         failed_checks: set[str] = set()
         try:
+            roles = detect_roles(device, client)
+            self._on_event("roles_detected", {"device": device.name, "roles": sorted(roles)})
             ctx = RunContext(
                 device=device,
                 client=client,
@@ -183,4 +209,4 @@ class Orchestrator:
         )
 
 
-__all__ = ["Orchestrator", "group_devices", "ClientFactory"]
+__all__ = ["Orchestrator", "group_devices", "detect_roles", "ClientFactory"]

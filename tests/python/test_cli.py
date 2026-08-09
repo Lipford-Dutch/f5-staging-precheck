@@ -104,3 +104,68 @@ def test_run_json_output(monkeypatch, tmp_path: Path):
     assert result.exit_code == EXIT_GO, result.stdout
     assert '"decision": "GO"' in result.stdout
     assert '"schema_version"' in result.stdout
+
+
+def test_run_writes_snapshot(monkeypatch, tmp_path: Path):
+    _patch_client(monkeypatch, fx.HEALTHY_HA_STANDBY)
+    result = runner.invoke(
+        app,
+        ["run", str(EXAMPLE), "--profile", "full", "--output-dir", str(tmp_path),
+         "--ci", "--no-color"],
+    )
+    assert result.exit_code == EXIT_GO, result.stdout
+    snaps = list(tmp_path.glob("snapshot-*.json"))
+    assert snaps, "run should always write an object-availability snapshot"
+
+
+def test_run_baseline_regression_forces_no_go(monkeypatch, tmp_path: Path):
+    import json
+
+    # First run (healthy) produces the pre-change baseline snapshot.
+    _patch_client(monkeypatch, fx.HEALTHY_HA_STANDBY)
+    runner.invoke(
+        app,
+        ["run", str(EXAMPLE), "--profile", "ltm-only", "--output-dir", str(tmp_path),
+         "--ci", "--no-color"],
+    )
+    baseline = sorted(tmp_path.glob("snapshot-*.json"))[-1]
+
+    # Second run with a VS gone offline → regression vs baseline → NO-GO,
+    # even though the checks themselves might not independently block.
+    down = dict(fx.HEALTHY_HA_STANDBY)
+    down["/mgmt/tm/ltm/virtual/stats"] = fx.VS_STATS_DOWN
+    _patch_client(monkeypatch, down)
+    out2 = tmp_path / "post"
+    result = runner.invoke(
+        app,
+        ["run", str(EXAMPLE), "--profile", "ltm-only", "--output-dir", str(out2),
+         "--baseline", str(baseline), "--ci", "--json", "--no-color"],
+    )
+    assert result.exit_code == EXIT_NO_GO, result.stdout
+    report = json.loads(result.stdout)
+    assert report["baseline"]["regressions"], "expected a recorded regression"
+
+
+def test_diff_command(monkeypatch, tmp_path: Path):
+    _patch_client(monkeypatch, fx.HEALTHY_HA_STANDBY)
+    runner.invoke(
+        app,
+        ["run", str(EXAMPLE), "--profile", "ltm-only", "--output-dir", str(tmp_path),
+         "--ci", "--no-color"],
+    )
+    before = sorted(tmp_path.glob("snapshot-*.json"))[-1]
+
+    down = dict(fx.HEALTHY_HA_STANDBY)
+    down["/mgmt/tm/ltm/virtual/stats"] = fx.VS_STATS_DOWN
+    _patch_client(monkeypatch, down)
+    after_dir = tmp_path / "after"
+    runner.invoke(
+        app,
+        ["run", str(EXAMPLE), "--profile", "ltm-only", "--output-dir", str(after_dir),
+         "--ci", "--no-color"],
+    )
+    after = sorted(after_dir.glob("snapshot-*.json"))[-1]
+
+    result = runner.invoke(app, ["diff", str(before), str(after), "--no-color"])
+    assert result.exit_code == EXIT_NO_GO, result.stdout
+    assert "regression" in result.stdout.lower()
