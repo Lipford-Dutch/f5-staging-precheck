@@ -11,8 +11,9 @@ It is **read-only**: it never mutates a device. Every run is fully audit-logged,
 and the design bias is that a check which cannot confirm health degrades to
 `WARN`/`FAIL` — never a silent `PASS`.
 
-> Status: **phase A (alpha)** — System + HA checks over iControl REST. LTM/GTM
-> checks and the SNMP cross-check layer land in later phases (see the roadmap).
+> Status: **phase B (alpha)** — System + HA + **LTM + GTM** object-state checks
+> over iControl REST, with **REST role auto-detection** and **pre/post object
+> snapshots**. The SNMP cross-check layer lands in phase C (see the roadmap).
 
 ## Install
 
@@ -48,16 +49,46 @@ bigip-precheck run inventory.yaml --profile full --ci --json
 | `2`  | NO-GO — at least one device has a blocking result.  |
 | `3`  | Config error — the run could not start.             |
 
-## Checks (phase A)
+## Checks
 
-| Check | Severity | Source | Purpose |
-|-------|----------|--------|---------|
-| `system.version`        | HIGH     | REST | Report running TMOS version/build. |
-| `system.license`        | CRITICAL | REST | Licensed + service-check date valid (K7727). |
-| `system.provisioning`   | MEDIUM   | REST | Provisioned modules and levels. |
-| `system.boot-volumes`   | HIGH     | REST | A free install target exists; nothing mid-install. |
-| `ha.failover-status`    | HIGH     | REST | Failover role (Active/Standby) + traffic-group health. |
-| `ha.sync-status`        | HIGH     | REST | Config-sync is In Sync (depends on failover-status). |
+| Check | Severity | Role | Purpose |
+|-------|----------|------|---------|
+| `system.version`        | HIGH     | any | Report running TMOS version/build. |
+| `system.license`        | CRITICAL | any | Licensed + service-check date valid (K7727). |
+| `system.provisioning`   | MEDIUM   | any | Provisioned modules and levels. |
+| `system.boot-volumes`   | HIGH     | any | A free install target exists; nothing mid-install. |
+| `ha.failover-status`    | HIGH     | any | Failover role (Active/Standby) + traffic-group health. |
+| `ha.sync-status`        | HIGH     | any | Config-sync is In Sync (depends on failover-status). |
+| `ltm.virtual-servers`   | HIGH     | LTM | Snapshot VS availability; flag offline-while-enabled. |
+| `ltm.pools`             | HIGH     | LTM | Pool availability + zero-active-member detection. |
+| `ltm.nodes`             | MEDIUM   | LTM | Node availability snapshot. |
+| `gtm.wide-ips`          | HIGH     | GTM | Wide IP availability across A/AAAA/CNAME. |
+| `gtm.pools`             | HIGH     | GTM | GTM pool availability across A/AAAA/CNAME. |
+| `gtm.servers`           | HIGH     | GTM | GTM server availability. |
+| `gtm.datacenters`       | MEDIUM   | GTM | Datacenter availability. |
+
+Checks are **role-filtered per device**. Roles come from the inventory when set,
+otherwise they are **auto-detected** from `/sys/provision` (LTM/GTM), falling
+back to LTM if the probe is unavailable.
+
+## Pre/post object snapshots
+
+Every `run` writes `snapshot-<session>.json` capturing each LTM/GTM object's
+availability. Compare a post-change run against a pre-change baseline:
+
+```bash
+# Before the change:
+bigip-precheck run inventory.yaml --profile full -o ./pre
+# After the change — regressions vs the baseline force NO-GO:
+bigip-precheck run inventory.yaml --profile full -o ./post \
+    --baseline ./pre/snapshot-<id>.json
+
+# Or compare two snapshots directly (exit 2 if anything regressed):
+bigip-precheck diff ./pre/snapshot-A.json ./post/snapshot-B.json
+```
+
+A **regression** is an object that was available/enabled in the baseline and no
+longer is; recoveries, additions and removals are reported but don't block.
 
 ## Configuration
 
@@ -69,7 +100,8 @@ Devices reference a `credential` by name; the secret is resolved at runtime from
 
 ## Roadmap
 
-* **PR B** — LTM + GTM object-state checks with pre/post snapshots.
+* **PR A** ✅ — System + HA checks, REST client, gate, CLI, audit.
+* **PR B** ✅ — LTM + GTM object-state checks, role auto-detection, pre/post snapshots.
 * **PR C** — SNMP layer and REST↔SNMP cross-checks (catch single-source blind spots).
 * **PR D** — HTML/Markdown reports, report signing, TMSH `load sys config verify`.
 

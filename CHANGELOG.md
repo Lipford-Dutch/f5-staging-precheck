@@ -7,6 +7,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **`bigip-precheck` phase B — LTM + GTM object checks, role auto-detection, snapshots.**
+  Builds on phase A:
+  - **LTM checkers** — `ltm.virtual-servers`, `ltm.pools` (incl. zero-active-member
+    detection), `ltm.nodes`. Objects offline while still enabled are traffic-impacting
+    failures; disabled objects are informational.
+  - **GTM checkers** — `gtm.wide-ips` and `gtm.pools` (sweeping A/AAAA/CNAME record
+    types), `gtm.servers`, `gtm.datacenters`.
+  - **REST role auto-detection** — when a device has no configured roles, LTM/GTM are
+    inferred from `/sys/provision`; checks are role-filtered per device.
+  - **Pre/post object snapshots** — every run writes a schema-versioned
+    `snapshot-<session>.json`; `run --baseline <snap>` diffs against it and forces
+    **NO-GO** on any availability regression, and a new `diff` command compares two
+    snapshots directly (exit `2` on regression). New `ltm-only` / `gtm-only` profiles.
+
 - **`bigip-precheck` — new Python upgrade-readiness validator (phase A / alpha).**
   A read-only, iControl REST–driven companion to the Bash `check_multi` tool that
   produces a per-device and overall **GO / NO-GO** verdict before an upgrade or

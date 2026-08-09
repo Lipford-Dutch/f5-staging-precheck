@@ -50,8 +50,9 @@ select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
 # Typer's declarative CLI relies on function-call defaults (B008); the long
 # lines in the CLI are option help strings kept inline for readability.
 "src/bigip_precheck/cli.py" = ["B008", "E501"]
-# Fixtures deliberately hold verbatim iControl payloads.
+# Test data (fixtures and inline object-state literals) is legitimately wide.
 "tests/python/fixtures/*.py" = ["E501"]
+"tests/python/test_*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

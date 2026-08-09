@@ -4,6 +4,7 @@ Commands:
     run              Run checks against an inventory and emit a GO/NO-GO verdict.
     list-checks      List available checks (optionally filtered by a profile).
     validate-config  Validate an inventory file without contacting any device.
+    diff             Compare two object-availability snapshots (pre vs post change).
     version          Print the tool version.
 
 Safety: the tool is read-only in this release. ``run`` always operates in
@@ -34,6 +35,14 @@ from .core.orchestrator import Orchestrator
 from .logging.audit import AuditLog
 from .logging.integrity import write_digest
 from .reporting import build_report, render, write_report
+from .snapshot import (
+    ObjectChange,
+    SnapshotDiff,
+    build_snapshot,
+    diff_snapshots,
+    load_snapshot,
+    write_snapshot,
+)
 
 app = typer.Typer(
     add_completion=False,
@@ -64,6 +73,55 @@ def _resolve_checks(inv: Inventory, profile: str | None, checks: list[str] | Non
     return None
 
 
+def _change_dict(c: ObjectChange) -> dict[str, object]:
+    return {
+        "device": c.device,
+        "check": c.check,
+        "name": c.name,
+        "kind": c.kind,
+        "detail": c.detail,
+        "before": c.before,
+        "after": c.after,
+    }
+
+
+def _render_diff(console: Console, diff: SnapshotDiff) -> None:
+    from rich.table import Table
+
+    summary = (
+        f"regressions {len(diff.regressions)}  "
+        f"recoveries {len(diff.by_kind('recovery'))}  "
+        f"added {len(diff.by_kind('added'))}  "
+        f"removed {len(diff.by_kind('removed'))}"
+    )
+    style = "bold red" if diff.has_regressions else "bold green"
+    console.print(f"[{style}]Baseline comparison:[/] {summary}")
+    if not diff.changes:
+        return
+    table = Table(title="Object changes vs baseline")
+    table.add_column("Device", no_wrap=True)
+    table.add_column("Check", no_wrap=True)
+    table.add_column("Object")
+    table.add_column("Change")
+    table.add_column("Detail")
+    kind_style = {
+        "regression": "red",
+        "recovery": "green",
+        "added": "cyan",
+        "removed": "yellow",
+        "changed": "white",
+    }
+    for c in diff.changes:
+        table.add_row(
+            c.device,
+            c.check,
+            c.name,
+            f"[{kind_style.get(c.kind, 'white')}]{c.kind}[/]",
+            c.detail,
+        )
+    console.print(table)
+
+
 @app.command()
 def run(
     inventory: Path = typer.Argument(..., help="Path to the inventory YAML file."),
@@ -76,6 +134,10 @@ def run(
     strict: bool = typer.Option(False, "--strict", help="Treat HIGH+ WARN results as blocking."),
     no_color: bool = typer.Option(False, "--no-color", help="Disable coloured output."),
     json_only: bool = typer.Option(False, "--json", help="Print the JSON report to stdout; suppress tables."),
+    baseline: Path | None = typer.Option(  # noqa: B008 - Typer option factory
+        None, "--baseline", "-b",
+        help="Compare object states against this pre-change snapshot; regressions force NO-GO.",
+    ),
 ) -> None:
     """Run readiness checks and produce a GO/NO-GO verdict."""
     console = _console(no_color)
@@ -96,6 +158,7 @@ def run(
             checks=[c.name for c in selected],
             devices=[d.name for d in inv.devices],
             allow_prompt=not ci,
+            baseline=str(baseline) if baseline else None,
         )
 
         orch = Orchestrator(
@@ -108,7 +171,28 @@ def run(
 
         gate = Gate(warn_is_blocking=strict)
         verdict = gate.evaluate(results)
-        audit.close(decision=verdict.decision.value)
+
+        # Always capture a snapshot of object availability for later comparison.
+        snap = build_snapshot(verdict, session_id=audit.session_id)
+        snapshot_path = write_snapshot(snap, Path(out_dir) / f"snapshot-{audit.session_id}.json")
+
+        diff: SnapshotDiff | None = None
+        if baseline is not None:
+            if not baseline.is_file():
+                raise ConfigError(f"baseline snapshot not found: {baseline}")
+            diff = diff_snapshots(load_snapshot(baseline), snap)
+            audit.event(
+                "baseline_diff",
+                regressions=len(diff.regressions),
+                recoveries=len(diff.by_kind("recovery")),
+                added=len(diff.by_kind("added")),
+                removed=len(diff.by_kind("removed")),
+            )
+
+        decision = verdict.decision
+        if diff is not None and diff.has_regressions:
+            decision = Decision.NO_GO
+        audit.close(decision=decision.value)
 
         report = build_report(
             verdict,
@@ -116,6 +200,15 @@ def run(
             profile=profile or "(all)",
             inventory_path=str(inventory),
         )
+        if diff is not None:
+            report["baseline"] = {
+                "path": str(baseline),
+                "regressions": [_change_dict(c) for c in diff.regressions],
+                "recoveries": [_change_dict(c) for c in diff.by_kind("recovery")],
+                "added": [_change_dict(c) for c in diff.by_kind("added")],
+                "removed": [_change_dict(c) for c in diff.by_kind("removed")],
+            }
+            report["decision"] = decision.value
         report_path = write_report(report, Path(out_dir) / f"report-{audit.session_id}.json")
         write_digest(report_path)
 
@@ -123,9 +216,14 @@ def run(
             typer.echo(Path(report_path).read_text(encoding="utf-8"))
         else:
             render(verdict, console)
-            console.print(f"[dim]Report: {report_path}  •  Audit: {audit.jsonl_path}[/dim]")
+            if diff is not None:
+                _render_diff(console, diff)
+            console.print(
+                f"[dim]Report: {report_path}  •  Snapshot: {snapshot_path}  "
+                f"•  Audit: {audit.jsonl_path}[/dim]"
+            )
 
-        raise typer.Exit(EXIT_GO if verdict.decision is Decision.GO else EXIT_NO_GO)
+        raise typer.Exit(EXIT_GO if decision is Decision.GO else EXIT_NO_GO)
     except ConfigError as exc:
         console.print(f"[bold red]Configuration error:[/bold red] {exc}")
         raise typer.Exit(EXIT_CONFIG) from exc
@@ -192,6 +290,23 @@ def validate_config(
         f"[bold green]OK[/bold green] — {len(inv.devices)} device(s), "
         f"{len(inv.profiles)} profile(s)."
     )
+
+
+@app.command()
+def diff(
+    before: Path = typer.Argument(..., help="Pre-change snapshot JSON."),
+    after: Path = typer.Argument(..., help="Post-change snapshot JSON."),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """Compare two object-availability snapshots. Exit 2 if any regression is found."""
+    console = _console(no_color)
+    for label, path in (("before", before), ("after", after)):
+        if not path.is_file():
+            console.print(f"[bold red]{label} snapshot not found:[/bold red] {path}")
+            raise typer.Exit(EXIT_CONFIG)
+    result = diff_snapshots(load_snapshot(before), load_snapshot(after))
+    _render_diff(console, result)
+    raise typer.Exit(EXIT_NO_GO if result.has_regressions else EXIT_GO)
 
 
 @app.command()

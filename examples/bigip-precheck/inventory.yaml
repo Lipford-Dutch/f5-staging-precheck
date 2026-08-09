@@ -54,7 +54,7 @@ profiles:
 
   full:
     name: full
-    description: Every system and HA readiness check.
+    description: Every readiness check (system, HA, LTM, GTM). Role-filtered per device.
     checks:
       - system.version
       - system.license
@@ -62,8 +62,25 @@ profiles:
       - system.boot-volumes
       - ha.failover-status
       - ha.sync-status
+      - ltm.virtual-servers
+      - ltm.pools
+      - ltm.nodes
+      - gtm.wide-ips
+      - gtm.pools
+      - gtm.servers
+      - gtm.datacenters
 
   ha-only:
     name: ha-only
     description: HA / device-group state only.
     checks: [ha.failover-status, ha.sync-status]
+
+  ltm-only:
+    name: ltm-only
+    description: LTM object availability snapshot.
+    checks: [ltm.virtual-servers, ltm.pools, ltm.nodes]
+
+  gtm-only:
+    name: gtm-only
+    description: GTM / DNS object availability snapshot.
+    checks: [gtm.wide-ips, gtm.pools, gtm.servers, gtm.datacenters]
