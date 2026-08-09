@@ -102,6 +102,100 @@ SYNC_CHANGES_PENDING = _stats(
 SYNC_STANDALONE = _stats({"color": "green", "mode": "standalone", "status": "Standalone", "summary": ""})
 
 
+def _obj_stats(objects: list[dict[str, str]], self_prefix: str = "obj") -> dict[str, Any]:
+    """Build a multi-object /stats payload from a list of {name, avail, enabled, reason}."""
+    entries: dict[str, Any] = {}
+    for i, o in enumerate(objects):
+        fields = {
+            "tmName": o["name"],
+            "status.availabilityState": o.get("avail", "available"),
+            "status.enabledState": o.get("enabled", "enabled"),
+            "status.statusReason": o.get("reason", ""),
+        }
+        if "activeMemberCnt" in o:
+            fields["activeMemberCnt"] = o["activeMemberCnt"]
+        entries[f"https://localhost/mgmt/tm/{self_prefix}/{i}"] = {
+            "nestedStats": {"entries": {k: {"description": v} for k, v in fields.items()}}
+        }
+    return {"kind": "tm:stats", "entries": entries}
+
+
+# --- LTM object stats -----------------------------------------------------
+VS_STATS_HEALTHY = _obj_stats(
+    [
+        {"name": "/Common/vs_web", "avail": "available", "enabled": "enabled",
+         "reason": "The virtual server is available"},
+        {"name": "/Common/vs_api", "avail": "available", "enabled": "enabled"},
+    ],
+    "ltm/virtual",
+)
+VS_STATS_DOWN = _obj_stats(
+    [
+        {"name": "/Common/vs_web", "avail": "available", "enabled": "enabled"},
+        {"name": "/Common/vs_api", "avail": "offline", "enabled": "enabled",
+         "reason": "The children pool member(s) are down"},
+        {"name": "/Common/vs_old", "avail": "offline", "enabled": "disabled",
+         "reason": "administratively disabled"},
+    ],
+    "ltm/virtual",
+)
+POOL_STATS_HEALTHY = _obj_stats(
+    [
+        {"name": "/Common/pool_web", "avail": "available", "enabled": "enabled",
+         "activeMemberCnt": "3"},
+        {"name": "/Common/pool_api", "avail": "available", "enabled": "enabled",
+         "activeMemberCnt": "2"},
+    ],
+    "ltm/pool",
+)
+POOL_STATS_NO_MEMBERS = _obj_stats(
+    [
+        {"name": "/Common/pool_web", "avail": "available", "enabled": "enabled",
+         "activeMemberCnt": "3"},
+        {"name": "/Common/pool_empty", "avail": "offline", "enabled": "enabled",
+         "activeMemberCnt": "0", "reason": "No members available"},
+    ],
+    "ltm/pool",
+)
+NODE_STATS_HEALTHY = _obj_stats(
+    [
+        {"name": "/Common/10.0.1.10", "avail": "available", "enabled": "enabled"},
+        {"name": "/Common/10.0.1.11", "avail": "available", "enabled": "enabled"},
+    ],
+    "ltm/node",
+)
+
+# --- GTM object stats -----------------------------------------------------
+WIDEIP_A_HEALTHY = _obj_stats(
+    [{"name": "/Common/app.example.com", "avail": "available", "enabled": "enabled"}],
+    "gtm/wideip/a",
+)
+WIDEIP_A_DOWN = _obj_stats(
+    [{"name": "/Common/app.example.com", "avail": "offline", "enabled": "enabled",
+      "reason": "No enabled pools available"}],
+    "gtm/wideip/a",
+)
+EMPTY_STATS: dict[str, Any] = {"kind": "tm:stats", "entries": {}}
+GTM_POOL_A_HEALTHY = _obj_stats(
+    [{"name": "/Common/pool_gslb", "avail": "available", "enabled": "enabled"}],
+    "gtm/pool/a",
+)
+GTM_SERVER_HEALTHY = _obj_stats(
+    [
+        {"name": "/Common/dc1-bigip", "avail": "available", "enabled": "enabled"},
+        {"name": "/Common/dc2-bigip", "avail": "available", "enabled": "enabled"},
+    ],
+    "gtm/server",
+)
+DATACENTER_HEALTHY = _obj_stats(
+    [
+        {"name": "/Common/DC1", "avail": "available", "enabled": "enabled"},
+        {"name": "/Common/DC2", "avail": "available", "enabled": "enabled"},
+    ],
+    "gtm/datacenter",
+)
+
+
 # A healthy device answers every path the phase-A checkers query.
 HEALTHY_HA_STANDBY: dict[str, dict[str, Any]] = {
     "/mgmt/tm/sys/version": VERSION,
@@ -110,6 +204,17 @@ HEALTHY_HA_STANDBY: dict[str, dict[str, Any]] = {
     "/mgmt/tm/sys/software/volume": BOOT_VOLUMES,
     "/mgmt/tm/cm/failover-status": FAILOVER_STANDBY,
     "/mgmt/tm/cm/sync-status": SYNC_IN_SYNC,
+    "/mgmt/tm/ltm/virtual/stats": VS_STATS_HEALTHY,
+    "/mgmt/tm/ltm/pool/stats": POOL_STATS_HEALTHY,
+    "/mgmt/tm/ltm/node/stats": NODE_STATS_HEALTHY,
+    "/mgmt/tm/gtm/wideip/a/stats": WIDEIP_A_HEALTHY,
+    "/mgmt/tm/gtm/wideip/aaaa/stats": EMPTY_STATS,
+    "/mgmt/tm/gtm/wideip/cname/stats": EMPTY_STATS,
+    "/mgmt/tm/gtm/pool/a/stats": GTM_POOL_A_HEALTHY,
+    "/mgmt/tm/gtm/pool/aaaa/stats": EMPTY_STATS,
+    "/mgmt/tm/gtm/pool/cname/stats": EMPTY_STATS,
+    "/mgmt/tm/gtm/server/stats": GTM_SERVER_HEALTHY,
+    "/mgmt/tm/gtm/datacenter/stats": DATACENTER_HEALTHY,
 }
 
 # An unhealthy device: expired license and config-sync not in sync.
