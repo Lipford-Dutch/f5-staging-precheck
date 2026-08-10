@@ -98,6 +98,23 @@ Devices reference a `credential` by name; the secret is resolved at runtime from
 `BIGIP_USERNAME` / `BIGIP_PASSWORD` as a fallback. HA members that share an
 `ha:<group>` tag are evaluated **standby before active**.
 
+## Live testing against a real device
+
+The default suite is offline. To validate against a real BIG-IP (e.g. a
+standalone VE on a hypervisor) and capture real payloads as fixtures, see
+[`docs/bigip-precheck/LIVE-TESTING.md`](../../docs/bigip-precheck/LIVE-TESTING.md):
+
+```bash
+# Run the env-gated live integration suite (skipped unless BIGIP_LIVE_HOST is set):
+export BIGIP_LIVE_HOST=192.168.1.245 BIGIP_LIVE_USERNAME=admin BIGIP_LIVE_PASSWORD=... BIGIP_LIVE_VERIFY_TLS=false
+pytest tests/live -v -s
+
+# Capture sanitized payloads from the device for use as fixtures:
+bigip-precheck capture examples/bigip-precheck/lab-standalone.yaml -o ./captures
+```
+
+Run these from a machine that can reach the device's management interface.
+
 ## Roadmap
 
 * **PR A** ✅ — System + HA checks, REST client, gate, CLI, audit.

@@ -53,6 +53,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
 # Test data (fixtures and inline object-state literals) is legitimately wide.
 "tests/python/fixtures/*.py" = ["E501"]
 "tests/python/test_*.py" = ["E501"]
+"tests/live/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -63,3 +64,6 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
 addopts = "-ra"
+markers = [
+    "live: integration test that talks to a real BIG-IP; skipped unless BIGIP_LIVE_HOST is set",
+]

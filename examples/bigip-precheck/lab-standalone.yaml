@@ -1,0 +1,38 @@
+# Example inventory for a single standalone BIG-IP VE (e.g. TMOS 17.x on a
+# local hypervisor). Point `host` at the VE management address.
+#
+# Credentials are resolved at runtime and never stored here:
+#   export BIGIP_DEFAULT_USERNAME=admin
+#   export BIGIP_DEFAULT_PASSWORD='...'          # or BIGIP_DEFAULT_TOKEN=...
+#
+# A lab VE uses a self-signed management certificate, so TLS verification is
+# disabled below. Turn it back on once you install a trusted cert.
+
+settings:
+  verify_tls: false          # self-signed VE mgmt cert
+  connect_timeout_s: 10
+  request_timeout_s: 30
+  output_dir: ./results/bigip-precheck
+
+devices:
+  - name: bigip-ve.lab
+    host: 192.168.1.245       # <-- change to your VE management IP
+    port: 443
+    # roles omitted → auto-detected from /sys/provision (LTM on a stock VE)
+    credential: default
+    verify_tls: false
+    tags: [lab, standalone]
+
+profiles:
+  standalone:
+    name: standalone
+    description: Everything meaningful on a standalone VE (system + LTM; GTM if provisioned).
+    checks:
+      - system.version
+      - system.license
+      - system.provisioning
+      - system.boot-volumes
+      - ha.sync-status        # reports "Standalone" (INFO) — expected, not a failure
+      - ltm.virtual-servers
+      - ltm.pools
+      - ltm.nodes
