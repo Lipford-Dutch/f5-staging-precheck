@@ -7,6 +7,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **`bigip-precheck` live testing — real-device integration suite + `capture`.**
+  - `tests/live/` — an env-gated pytest suite that authenticates to a real BIG-IP
+    over iControl REST and asserts the whole pipeline runs (token login, version
+    probe, role auto-detection, every checker, and a full orchestrator GO/NO-GO
+    run) without any checker crashing. Skipped unless `BIGIP_LIVE_HOST` is set, so
+    normal CI stays offline.
+  - `capture` CLI command — issues read-only GETs against a device and writes
+    **sanitized** payloads (secrets, `registrationKey`, and host/IP scrubbed;
+    aborts on any leak) for use as offline fixtures.
+  - `examples/bigip-precheck/lab-standalone.yaml` and
+    [`docs/bigip-precheck/LIVE-TESTING.md`](docs/bigip-precheck/LIVE-TESTING.md)
+    runbook. The harness and capture were validated end-to-end against a local
+    self-signed HTTPS iControl emulator before shipping.
+
 - **`bigip-precheck` phase B — LTM + GTM object checks, role auto-detection, snapshots.**
   Builds on phase A:
   - **LTM checkers** — `ltm.virtual-servers`, `ltm.pools` (incl. zero-active-member
