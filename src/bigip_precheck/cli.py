@@ -5,6 +5,7 @@ Commands:
     list-checks      List available checks (optionally filtered by a profile).
     validate-config  Validate an inventory file without contacting any device.
     diff             Compare two object-availability snapshots (pre vs post change).
+    capture          Save sanitized live REST payloads as offline fixtures.
     version          Print the tool version.
 
 Safety: the tool is read-only in this release. ``run`` always operates in
@@ -26,9 +27,11 @@ import typer
 from rich.console import Console
 
 from . import __version__
+from .capture import capture_device
 from .checkers import build_default_registry
-from .config.loader import load_inventory
-from .config.models import Inventory
+from .clients.rest import IControlRestClient
+from .config.loader import load_inventory, resolve_credential
+from .config.models import Device, Inventory
 from .core.exceptions import ConfigError, PrecheckError
 from .core.gate import Decision, Gate
 from .core.orchestrator import Orchestrator
@@ -57,6 +60,17 @@ EXIT_CONFIG = 3
 
 def _console(no_color: bool) -> Console:
     return Console(no_color=no_color or bool(os.environ.get("NO_COLOR")))
+
+
+def _select_device(inv: Inventory, name: str | None) -> Device:
+    """Return the named device, or the first one when no name is given."""
+    if name is None:
+        return inv.devices[0]
+    for d in inv.devices:
+        if d.name == name:
+            return d
+    known = ", ".join(d.name for d in inv.devices)
+    raise ConfigError(f"device '{name}' not found. Known devices: {known}")
 
 
 def _resolve_checks(inv: Inventory, profile: str | None, checks: list[str] | None) -> list[str] | None:
@@ -307,6 +321,52 @@ def diff(
     result = diff_snapshots(load_snapshot(before), load_snapshot(after))
     _render_diff(console, result)
     raise typer.Exit(EXIT_NO_GO if result.has_regressions else EXIT_GO)
+
+
+@app.command()
+def capture(
+    inventory: Path = typer.Argument(..., help="Inventory YAML containing the target device."),
+    device: str | None = typer.Option(None, "--device", "-D", help="Device name (default: first)."),
+    output_dir: Path = typer.Option(  # noqa: B008 - Typer option factory
+        Path("./captures"), "--output-dir", "-o", help="Directory to write sanitized payloads."
+    ),
+    ci: bool = typer.Option(False, "--ci", help="Non-interactive; read credentials from env only."),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """Capture sanitized iControl REST payloads from a live device for use as fixtures."""
+    console = _console(no_color)
+    try:
+        inv = load_inventory(inventory)
+        if not inv.devices:
+            raise ConfigError("inventory contains no devices")
+        target = _select_device(inv, device)
+        cred = resolve_credential(target.credential, allow_prompt=not ci)
+        client = IControlRestClient(target, cred, inv.settings)
+        # Scrub the device's own identifiers out of the captured payloads.
+        replacements = {
+            target.host: "bigip.example.com",
+            target.name: "bigip.example.com",
+        }
+        try:
+            console.print(f"Detected TMOS version: [bold]{client.tmos_version or 'unknown'}[/bold]")
+            results = capture_device(client, output_dir, replacements=replacements)
+        finally:
+            client.close()
+    except ConfigError as exc:
+        console.print(f"[bold red]Configuration error:[/bold red] {exc}")
+        raise typer.Exit(EXIT_CONFIG) from exc
+    except PrecheckError as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(EXIT_CONFIG) from exc
+
+    captured = sum(1 for v in results.values() if v == "captured")
+    skipped = len(results) - captured
+    for path, outcome in results.items():
+        mark = "[green]captured[/green]" if outcome == "captured" else f"[dim]{outcome}[/dim]"
+        console.print(f"  {mark}  {path}")
+    console.print(
+        f"[bold green]Done[/bold green] — {captured} captured, {skipped} skipped → {output_dir}"
+    )
 
 
 @app.command()

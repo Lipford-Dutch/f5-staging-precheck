@@ -29,6 +29,7 @@ _SECRET_KEYS = frozenset(
         "set-cookie",
         "credential",
         "credentials",
+        "registrationkey",
     }
 )
 
