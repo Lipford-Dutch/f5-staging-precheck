@@ -55,4 +55,15 @@ auto-detection from `/sys/provision` and its LTM fallback; snapshot build,
 on-disk round-trip, and regression/recovery/added/removed diffing including the
 `run --baseline` and `diff` CLI paths.
 
+Unprovisioned modules: every GTM endpoint returning HTTP 404 on an LTM-only
+device must read as `INFO` (absent), while a genuine read error (auth, timeout,
+5xx) on the same endpoint must still `FAIL` — see `test_not_provisioned.py`.
+
 The SNMP-down and mixed-version cases arrive with PR C.
+
+## Fixtures verified against real hardware
+
+`VERSION`, `PROVISION_LTM_ONLY`, `NODE_STATS_UNKNOWN` and `STANDALONE_LTM_ONLY`
+mirror a real BIG-IP VE running **TMOS 17.5.1.8** (LTM-only, standalone). The
+`STANDALONE_LTM_ONLY` map deliberately omits every `/mgmt/tm/gtm/**` path so the
+fake client 404s on them, reproducing that device exactly.
