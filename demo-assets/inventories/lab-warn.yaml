@@ -1,0 +1,5 @@
+# Demo inventory — device with a near-expiry license (mock :18445).
+# Normal run: GO (WARN is advisory). With --strict: NO-GO (HIGH+ WARN blocks).
+settings: { max_workers: 1, connect_timeout_s: 3, request_timeout_s: 5, retries: 1, verify_tls: false, output_dir: ./demo-assets/files }
+devices:
+  - { name: bigip-c.lab.local, host: 127.0.0.1, port: 18445, roles: [LTM], credential: default }

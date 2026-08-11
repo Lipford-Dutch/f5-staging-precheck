@@ -1,0 +1,15 @@
+# Enforce LF for all text so a Windows checkout (core.autocrlf) cannot introduce
+# CRLF that breaks shell-script execution on Linux/macOS. The .editorconfig set
+# end_of_line=lf but that is editor-advisory only; this is enforced by git.
+* text=auto eol=lf
+
+# Scripts and code that MUST be LF to run/parse correctly.
+*.sh    text eol=lf
+*.bats  text eol=lf
+*.py    text eol=lf
+bin/check_multi text eol=lf
+
+# Binary artifacts git must never touch.
+*.xlsx  binary
+*.png   binary
+*.ico   binary
