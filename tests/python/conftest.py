@@ -9,7 +9,7 @@ import pytest
 from bigip_precheck.clients.rest import RestClient
 from bigip_precheck.config.models import Device, Thresholds
 from bigip_precheck.core.context import RunContext
-from bigip_precheck.core.exceptions import ConnectionFailed
+from bigip_precheck.core.exceptions import NotFound
 
 
 class FakeRestClient:
@@ -30,7 +30,9 @@ class FakeRestClient:
     def get(self, path: str) -> dict[str, Any]:
         self.calls.append(path)
         if path not in self._responses:
-            raise ConnectionFailed(f"no fixture for {path}")
+            # Mirror the real client: an endpoint the device doesn't serve is a
+            # 404 -> NotFound (absent), not a transport failure.
+            raise NotFound(f"no fixture for {path} (simulated HTTP 404)")
         payload = self._responses[path]
         if isinstance(payload, Exception):
             raise payload
