@@ -6,6 +6,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **An unprovisioned module no longer reports as a failure.** Found by the first
+  live run against a real BIG-IP VE (TMOS 17.5.1.8, LTM-only): every GTM endpoint
+  returns HTTP 404, and the GTM checkers reported four HIGH failures
+  (`could not read wide IPs: ... HTTP 404`), which would wrongly push a device to
+  NO-GO. A 404 means the collection does not exist — the module is not
+  provisioned — which is an absence to report, not a read failure.
+  - New `NotFound(ClientError)` exception; the REST client raises it on 404 while
+    other 4xx still raise `UnexpectedResponse`.
+  - GTM and LTM checkers report `INFO` ("… not provisioned on this device") when
+    every relevant endpoint 404s. Genuine read errors (auth, timeout, 5xx) and
+    partial absences (one record type missing) are unchanged, so nothing is
+    masked — verified by `tests/python/test_not_provisioned.py`.
+  - The live `live_ctx` fixture now uses **real detected roles** instead of
+    hard-coding `{LTM, GTM}`, so live output matches production role filtering.
+  - Fixtures refreshed to a real 17.5.1.8 device (`VERSION`,
+    `PROVISION_LTM_ONLY`, `NODE_STATS_UNKNOWN`, `STANDALONE_LTM_ONLY`), plus a
+    live regression test asserting unprovisioned modules never `FAIL`.
+
 ### Added
 - **`bigip-precheck` live testing — real-device integration suite + `capture`.**
   - `tests/live/` — an env-gated pytest suite that authenticates to a real BIG-IP

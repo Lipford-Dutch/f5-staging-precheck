@@ -97,13 +97,20 @@ def live_client(
 
 
 @pytest.fixture
-def live_ctx(
-    live_device: Device, live_client: IControlRestClient
-) -> RunContext:
+def live_ctx(live_device: Device, live_client: IControlRestClient) -> RunContext:
+    """Context using the device's REAL detected roles, matching production.
+
+    Earlier this hard-coded ``{"LTM", "GTM"}`` to force every checker to run,
+    which made a device without GTM provisioned look like it had four failing
+    GTM checks. Using the true roles keeps live output faithful to what an
+    operator would actually see.
+    """
+    from bigip_precheck.core.orchestrator import detect_roles
+
     return RunContext(
         device=live_device,
         client=live_client,
         thresholds=Thresholds(),
         session_id="live-test",
-        detected_roles=frozenset({"LTM", "GTM"}),  # run every checker; role filter is separately tested
+        detected_roles=detect_roles(live_device, live_client),
     )

@@ -22,7 +22,7 @@ import httpx
 
 from ..config.loader import Credential
 from ..config.models import Device, Settings
-from ..core.exceptions import AuthError, ConnectionFailed, UnexpectedResponse
+from ..core.exceptions import AuthError, ConnectionFailed, NotFound, UnexpectedResponse
 
 _LOGIN_PATH = "/mgmt/shared/authn/login"
 _TOKEN_HEADER = "X-F5-Auth-Token"
@@ -130,6 +130,10 @@ class IControlRestClient:
                 )
                 self._sleep_backoff(attempt)
                 continue
+            if resp.status_code == 404:
+                # Not an error: the collection does not exist on this device
+                # (module not provisioned, or no objects of that type).
+                raise NotFound(f"{self.device.name}: GET {path} -> HTTP 404")
             if resp.status_code >= 400:
                 raise UnexpectedResponse(
                     f"{self.device.name}: GET {path} -> HTTP {resp.status_code}"

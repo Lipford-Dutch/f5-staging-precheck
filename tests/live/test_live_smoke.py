@@ -54,6 +54,37 @@ def test_all_checkers_run_without_crashing(live_ctx):
     )
 
 
+def test_unprovisioned_modules_report_absent_not_failed(live_ctx, live_client):
+    """A module that isn't provisioned must read as INFO (absent), never FAIL.
+
+    Regression test for a bug found on a real TMOS 17.5.1.8 VE with only LTM
+    provisioned: every GTM endpoint 404s, and the checkers reported four HIGH
+    failures. A 404 means the collection does not exist — an absence to report,
+    not a read failure that should block an upgrade.
+    """
+    from bigip_precheck.checkers import gtm, ltm
+
+    roles = live_ctx.detected_roles
+    families = []
+    if "GTM" not in roles:
+        families.append(("GTM", gtm.checkers()))
+    if "LTM" not in roles:
+        families.append(("LTM", ltm.checkers()))
+    if not families:
+        pytest.skip("device provisions both LTM and GTM; no absent module to verify")
+
+    for label, checkers in families:
+        for checker in checkers:
+            results = timed(checker, live_ctx)
+            statuses = {r.status for r in results}
+            print(f"\n{label} {checker.name} (unprovisioned) → "
+                  + ", ".join(f"{r.status.value}: {r.summary}" for r in results))
+            assert Status.FAIL not in statuses, (
+                f"{checker.name} reported FAIL for an unprovisioned {label} module; "
+                "expected INFO (absent)"
+            )
+
+
 def test_ha_sync_status_is_sane_on_standalone(live_ctx):
     from bigip_precheck.checkers.ha import SyncStatusChecker
 
