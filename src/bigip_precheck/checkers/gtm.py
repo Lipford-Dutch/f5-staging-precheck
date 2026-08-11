@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ..core.context import RunContext
-from ..core.exceptions import ClientError
+from ..core.exceptions import ClientError, NotFound
 from ..core.models import CheckResult, Role, Severity, Status
 from . import _icontrol as ic
 from ._objectcheck import evaluate_object_stats
@@ -24,23 +24,47 @@ _WIDEIP_TYPES = ("a", "aaaa", "cname")
 _POOL_TYPES = ("a", "aaaa", "cname")
 
 
-def _gather(ctx: RunContext, paths: Sequence[str]) -> tuple[list[ic.ObjectState], list[str]]:
+def _gather(
+    ctx: RunContext, paths: Sequence[str]
+) -> tuple[list[ic.ObjectState], list[str], int]:
     """Collect object states across several stats endpoints.
 
-    Returns ``(states, errors)``. A 404-style empty/error on one record type is
-    swallowed (that type simply isn't configured); the caller decides how to
-    treat a total wipeout where every endpoint errored.
+    Returns ``(states, errors, absent)``:
+
+    * ``states``  — every object found across the endpoints that answered.
+    * ``errors``  — genuine read failures (auth, timeout, 5xx, unparsable).
+    * ``absent``  — count of endpoints that returned 404, meaning the collection
+      does not exist here (GTM not provisioned, or that record type unused).
+
+    Separating 404s from real errors matters: a device without GTM provisioned
+    404s on every GTM path, and that is an absence to report — not a failure
+    that should block an upgrade.
     """
     states: list[ic.ObjectState] = []
     errors: list[str] = []
+    absent = 0
     for path in paths:
         try:
             data = ctx.client.get(path)
+        except NotFound:
+            absent += 1
+            continue
         except ClientError as exc:
             errors.append(f"{path}: {exc}")
             continue
         states.extend(ic.object_states(data))
-    return states, errors
+    return states, errors, absent
+
+
+def _not_provisioned(checker: Checker, ctx: RunContext, what: str) -> CheckResult:
+    """Uniform result for 'GTM isn't provisioned on this device'."""
+    return checker._result(
+        ctx,
+        Status.INFO,
+        f"GTM not provisioned on this device; no {what} to check",
+        severity=Severity.INFO,
+        evidence={"objects": []},
+    )
 
 
 class WideIpChecker(Checker):
@@ -51,7 +75,9 @@ class WideIpChecker(Checker):
 
     def run(self, ctx: RunContext) -> Sequence[CheckResult]:
         paths = [f"/mgmt/tm/gtm/wideip/{t}/stats" for t in _WIDEIP_TYPES]
-        states, errors = _gather(ctx, paths)
+        states, errors, absent = _gather(ctx, paths)
+        if absent == len(paths):
+            return [_not_provisioned(self, ctx, "wide IPs")]
         if errors and not states:
             return [self._result(ctx, Status.FAIL, f"could not read wide IPs: {errors[0]}")]
         return evaluate_object_stats(self, ctx, states, kind="wide-ips")
@@ -65,7 +91,9 @@ class GtmPoolChecker(Checker):
 
     def run(self, ctx: RunContext) -> Sequence[CheckResult]:
         paths = [f"/mgmt/tm/gtm/pool/{t}/stats" for t in _POOL_TYPES]
-        states, errors = _gather(ctx, paths)
+        states, errors, absent = _gather(ctx, paths)
+        if absent == len(paths):
+            return [_not_provisioned(self, ctx, "GTM pools")]
         if errors and not states:
             return [self._result(ctx, Status.FAIL, f"could not read GTM pools: {errors[0]}")]
         return evaluate_object_stats(self, ctx, states, kind="gtm-pools")
@@ -80,6 +108,8 @@ class GtmServerChecker(Checker):
     def run(self, ctx: RunContext) -> Sequence[CheckResult]:
         try:
             data = ctx.client.get("/mgmt/tm/gtm/server/stats")
+        except NotFound:
+            return [_not_provisioned(self, ctx, "GTM servers")]
         except ClientError as exc:
             return [self._result(ctx, Status.FAIL, f"could not read GTM servers: {exc}")]
         return evaluate_object_stats(self, ctx, ic.object_states(data), kind="gtm-servers")
@@ -94,6 +124,8 @@ class DatacenterChecker(Checker):
     def run(self, ctx: RunContext) -> Sequence[CheckResult]:
         try:
             data = ctx.client.get("/mgmt/tm/gtm/datacenter/stats")
+        except NotFound:
+            return [_not_provisioned(self, ctx, "datacenters")]
         except ClientError as exc:
             return [self._result(ctx, Status.FAIL, f"could not read datacenters: {exc}")]
         return evaluate_object_stats(self, ctx, ic.object_states(data), kind="datacenters")

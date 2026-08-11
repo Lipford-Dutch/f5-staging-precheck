@@ -18,7 +18,7 @@ def test_version_pass(make_ctx):
     ctx = make_ctx({"/mgmt/tm/sys/version": fx.VERSION})
     (res,) = VersionChecker().run(ctx)
     assert res.status is Status.PASS
-    assert "16.1.3.3" in res.summary
+    assert "17.5.1.8" in res.summary  # fixture mirrors a real TMOS 17.5.1.8 device
 
 
 def test_version_client_error_fails_not_passes(make_ctx):
