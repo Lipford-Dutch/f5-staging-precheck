@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0",
+  "tool": "bigip-precheck",
+  "tool_version": "0.1.0",
+  "session_id": "a0990cef0c0c",
+  "generated_at": "2026-08-10T19:00:23.297848+00:00",
+  "profile": "(all)",
+  "inventory": "demo-assets/inventories/lab-go.yaml",
+  "decision": "GO",
+  "totals": {
+    "PASS": 6,
+    "WARN": 0,
+    "FAIL": 0,
+    "INFO": 0,
+    "SKIP": 0
+  },
+  "devices": [
+    {
+      "device": "bigip-a.lab.local",
+      "decision": "GO",
+      "counts": {
+        "PASS": 6,
+        "WARN": 0,
+        "FAIL": 0,
+        "INFO": 0,
+        "SKIP": 0
+      },
+      "results": [
+        {
+          "check": "ha.failover-status",
+          "status": "PASS",
+          "severity": "INFO",
+          "summary": "failover role: ACTIVE (1/1 active)",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": null,
+          "evidence": {
+            "color": "green",
+            "status": "ACTIVE",
+            "summary": "1/1 active"
+          },
+          "duration_s": 0.0144,
+          "timestamp": "2026-08-10T19:00:23.177049+00:00"
+        },
+        {
+          "check": "ha.sync-status",
+          "status": "PASS",
+          "severity": "INFO",
+          "summary": "config-sync is In Sync",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": null,
+          "evidence": {
+            "color": "green",
+            "status": "In Sync",
+            "summary": "All devices in sync",
+            "mode": "high-availability"
+          },
+          "duration_s": 0.0049,
+          "timestamp": "2026-08-10T19:00:23.192500+00:00"
+        },
+        {
+          "check": "system.boot-volumes",
+          "status": "PASS",
+          "severity": "INFO",
+          "summary": "1 inactive boot volume(s) available: HD1.2",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": null,
+          "evidence": {
+            "volumes": [
+              "HD1.1",
+              "HD1.2"
+            ],
+            "inactive": [
+              "HD1.2"
+            ]
+          },
+          "duration_s": 0.0048,
+          "timestamp": "2026-08-10T19:00:23.207683+00:00"
+        },
+        {
+          "check": "system.license",
+          "status": "PASS",
+          "severity": "MEDIUM",
+          "summary": "licensed; service-check date valid (2027/01/15)",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": "K7727",
+          "evidence": {
+            "serviceCheckDate": "2027/01/15",
+            "licensedOn": "2025/01/15"
+          },
+          "duration_s": 0.0072,
+          "timestamp": "2026-08-10T19:00:23.226929+00:00"
+        },
+        {
+          "check": "system.provisioning",
+          "status": "PASS",
+          "severity": "INFO",
+          "summary": "provisioned modules: gtm=nominal, ltm=nominal",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": null,
+          "evidence": {
+            "provisioned": {
+              "ltm": "nominal",
+              "gtm": "nominal"
+            }
+          },
+          "duration_s": 0.0048,
+          "timestamp": "2026-08-10T19:00:23.242708+00:00"
+        },
+        {
+          "check": "system.version",
+          "status": "PASS",
+          "severity": "INFO",
+          "summary": "BIG-IP 16.1.3.3 (build 0.0.4)",
+          "device": "bigip-a.lab.local",
+          "source": "rest",
+          "remediation": null,
+          "reference": null,
+          "evidence": {
+            "version": "16.1.3.3",
+            "build": "0.0.4",
+            "product": "BIG-IP"
+          },
+          "duration_s": 0.005,
+          "timestamp": "2026-08-10T19:00:23.258551+00:00"
+        }
+      ]
+    }
+  ]
+}

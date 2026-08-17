@@ -1,0 +1,30 @@
+{
+  "run_id": "20260810_145920_6",
+  "timestamp": "2026-08-10T14:59:20-04:00",
+  "user": "great-clever-sagan",
+  "host": "claude",
+  "check": "platform",
+  "environment": "lab",
+  "inventory": "examples/devices.txt",
+  "version": "2.0.0-alpha",
+  "dry_run": true,
+  "threads": 12,
+  "total": 2,
+  "success": 2,
+  "failed": 0,
+  "success_rate": 100.0,
+  "devices": [
+    {
+      "name": "f5-lab-01.example.com",
+      "status": "SUCCESS",
+      "duration": 0,
+      "message": ""
+    },
+    {
+      "name": "f5-lab-02.example.com",
+      "status": "SUCCESS",
+      "duration": 0,
+      "message": ""
+    }
+  ]
+}

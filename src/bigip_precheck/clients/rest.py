@@ -147,7 +147,12 @@ class IControlRestClient:
             if not isinstance(data, dict):
                 raise UnexpectedResponse(f"{self.device.name}: GET {path} returned non-object")
             return data
-        assert last_exc is not None
+        if last_exc is None:
+            # Reached only when the single allowed attempt hit the one-shot 401
+            # token-refresh branch (e.g. retries=0 with a first-attempt 401) and
+            # the loop then exhausted. Surface a typed AuthError rather than
+            # crashing on an assertion.
+            raise AuthError(f"{self.device.name}: GET {path} unauthorised")
         raise last_exc
 
     def _sleep_backoff(self, attempt: int) -> None:
@@ -174,7 +179,7 @@ class IControlRestClient:
             first = next(iter(entries.values()))
             nested = first["nestedStats"]["entries"]
             return str(nested["Version"]["description"])
-        except (KeyError, StopIteration, TypeError):
+        except (KeyError, StopIteration, TypeError, AttributeError):
             return ""
 
     def close(self) -> None:

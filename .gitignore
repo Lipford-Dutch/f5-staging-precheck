@@ -1,20 +1,44 @@
-results/
-site/
-*.log
-*.xlsx
+# Python
 __pycache__/
-*.pyc
-.SSHPASS
-.DS_Store
-.venv/
-*.local.yaml
-
-# Python packaging / tooling
+*.py[cod]
 *.egg-info/
-build/
-dist/
-.pytest_cache/
+.venv*/
 .mypy_cache/
+.pytest_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+build/
+dist/
+
+# Legacy / misc scratch
+.SSHPASS
+.DS_Store
+*.local.yaml
+*.log
+
+# Repo-root scratch Excel exports (the curated demo report lives under
+# demo-assets/files/ and is intentionally tracked, so this is root-only).
+/*.xlsx
+
+# Generated docs site (built by CI from docs/ for GitHub Pages)
+/site/
+
+# check_multi run outputs
+/results/
+
+# Demo kit: keep the curated artifacts, ignore raw per-run reports/audits + LO temp
+demo-assets/files/report-*.json
+demo-assets/files/report-*.sha256
+demo-assets/files/session-*.jsonl
+demo-assets/files/session-*.log
+demo-assets/**/.~lock*
+demo-assets/**/*.tmp
+demo-assets.zip
+
+# Infra / lab scratch (NEVER commit — may contain device credentials)
+*.ps1
+*-result.txt
+lab-devices.txt
+CODING_AGENT_HANDOFF.md

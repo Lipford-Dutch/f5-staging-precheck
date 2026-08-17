@@ -1,0 +1,7 @@
+# Intentionally invalid: duplicate device name + unknown check in a profile.
+settings: { verify_tls: false }
+devices:
+  - { name: dup.lab.local, host: 10.0.0.1 }
+  - { name: dup.lab.local, host: 10.0.0.2 }
+profiles:
+  bad: { name: bad, description: references a missing check, checks: [system.version, no.such.check] }
