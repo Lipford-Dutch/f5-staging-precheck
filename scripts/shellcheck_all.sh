@@ -2,7 +2,7 @@
 # Run ShellCheck across every shell script in the repository, including the
 # extensionless entry point (bin/check_multi), which a bare *.sh glob misses.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.."    
 
 if ! command -v shellcheck >/dev/null 2>&1; then
   echo "shellcheck not installed – see docs/INSTALL.md" >&2
