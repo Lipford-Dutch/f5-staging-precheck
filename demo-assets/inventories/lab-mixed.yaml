@@ -1,0 +1,27 @@
+# Demo inventory — a healthy device (:18443) and a degraded one (:18444).
+# Expected: bigip-a GO, bigip-b NO-GO (expired license + config drift) -> overall NO-GO.
+settings:
+  max_workers: 2
+  connect_timeout_s: 3
+  request_timeout_s: 5
+  retries: 1
+  verify_tls: false
+  output_dir: ./demo-assets/files
+devices:
+  - name: bigip-a.lab.local
+    host: 127.0.0.1
+    port: 18443
+    roles: [LTM, HA]
+    credential: default
+    tags: [ha:pair1, standby]
+  - name: bigip-b.lab.local
+    host: 127.0.0.1
+    port: 18444
+    roles: [LTM, HA]
+    credential: default
+    tags: [ha:pair1, active]
+profiles:
+  full:
+    name: full
+    description: Every system and HA readiness check.
+    checks: [system.version, system.license, system.provisioning, system.boot-volumes, ha.failover-status, ha.sync-status]

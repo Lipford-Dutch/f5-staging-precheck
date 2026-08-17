@@ -6,6 +6,37 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.0.0-alpha] - 2026-08-11 — Official Alpha Release
+
+First official alpha release of the combined `f5-staging-precheck` toolkit
+(Bash `check_multi` + Python `bigip-precheck`), prepared for **Bank of
+America**. Everything below through phase B was already on `main`; this
+release adds a full QA hardening pass, the demo kit, and branding on top.
+
+### Added
+- **QA hardening pass.** Full production-readiness audit: 2 bugs fixed in the
+  REST client and redaction module (1 security — `Authorization`-header
+  redaction was leaking the base64 credential payload, not just the auth
+  scheme token), 38 new adversarial/edge-case tests (91 → 129, all passing),
+  branch coverage 87% → 91% across the full `bigip_precheck` package,
+  `ruff` + `mypy --strict` all clean on all 31 source files. Full report:
+  `qa-report/PRODUCTION_READINESS.md` (figures there predate the phase-B
+  merge and cover the phase-A-only codebase at the time of the audit; the
+  numbers above are the current, full-package figures).
+- `.gitattributes` enforcing LF line endings on shell/Python sources, closing
+  the CRLF-on-Windows-checkout failure class.
+- Demo asset kit: 18 captioned screenshots (PNG + SVG), a reproducible mock
+  iControl REST server, an executive Excel report, a rehearsable run-of-show
+  script, and an HTML contact sheet.
+- Bank of America branding on the README and demo materials.
+
+### Changed
+- Repository housekeeping: cleared stray build/cache artifacts and widened
+  `.gitignore` (notably `.venv*/`, which the previous bare `.venv/` entry
+  did not match against the project's actual `.venv311` virtualenv).
+
 ### Fixed
 - **An unprovisioned module no longer reports as a failure.** Found by the first
   live run against a real BIG-IP VE (TMOS 17.5.1.8, LTM-only): every GTM endpoint

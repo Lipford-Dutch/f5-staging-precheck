@@ -37,7 +37,9 @@ _SECRET_KEYS = frozenset(
 _TEXT_PATTERNS: tuple[re.Pattern[str], ...] = (
     # iControl REST auth tokens look like long base32-ish blobs.
     re.compile(r"(X-F5-Auth-Token\s*[:=]\s*)\S+", re.IGNORECASE),
-    re.compile(r"(Authorization\s*[:=]\s*)\S+", re.IGNORECASE),
+    # Capture the ENTIRE header value (scheme + credentials), not just the
+    # first token: "Authorization: Basic <base64>" must not leak the base64.
+    re.compile(r"(Authorization\s*[:=]\s*).+", re.IGNORECASE),
     re.compile(r"(Basic\s+)[A-Za-z0-9+/=]{8,}", re.IGNORECASE),
     re.compile(r"(password[\"']?\s*[:=]\s*[\"']?)[^\s\"',}]+", re.IGNORECASE),
 )
