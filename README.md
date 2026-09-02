@@ -133,12 +133,25 @@ check_multi_2.0/
 ├── completions/check_multi.bash   # Bash tab-completion
 ├── scripts/
 │   ├── generate_excel_report.py
-│   ├── build_docs.py            # Static docs-site generator → site/
+│   ├── build_docs.py            # Guide generator      → site/docs/
+│   ├── build_hero.py            # Hero landing page    → site/index.html
 │   └── shellcheck_all.sh
 ├── docs/                        # Markdown → published to GitHub Pages
 ├── examples/  tests/  Makefile
 └── .github/workflows/{ci.yml,docs.yml}
 ```
+
+### Published site
+
+A repository gets exactly one GitHub Pages site, so both parts ship in a single
+deployment (`docs.yml`) rather than competing workflows:
+
+```
+/            hero landing page              ← scripts/build_hero.py
+/docs/       technical user + admin guide   ← scripts/build_docs.py
+```
+
+Build it locally with `make docs` (or `make docs-serve` to preview on :8000).
 
 ---
 

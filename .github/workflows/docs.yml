@@ -13,6 +13,8 @@ on:
       - "docs/**"
       - "README.md"
       - "scripts/build_docs.py"
+      - "scripts/build_hero.py"
+      - "demo-assets/branding/**"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
@@ -38,8 +40,15 @@ jobs:
           python-version: "3.12"
       - name: Install build dependencies
         run: pip install -r requirements-docs.txt
-      - name: Build documentation site
-        run: python3 scripts/build_docs.py --out site
+      # One Pages deployment serves both parts of the site:
+      #   /       hero landing page
+      #   /docs/  technical user + administrator guide
+      # A repository gets exactly one Pages site, so these must be one artifact
+      # rather than two competing deployments.
+      - name: Build documentation site (/docs/)
+        run: python3 scripts/build_docs.py --out site/docs
+      - name: Build hero landing page (/)
+        run: python3 scripts/build_hero.py --out site
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

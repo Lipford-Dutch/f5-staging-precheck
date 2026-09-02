@@ -33,8 +33,9 @@ smoke: ## Dry-run every check module against the example inventory
 
 check: lint syntax test smoke ## Run the full local verification suite
 
-docs: ## Build the static documentation site into ./site
-	python3 scripts/build_docs.py --out site
+docs: ## Build the full site into ./site (hero at /, guide at /docs/)
+	python3 scripts/build_docs.py --out site/docs
+	python3 scripts/build_hero.py --out site
 
 docs-serve: docs ## Build docs and serve them locally on :8000
 	@echo "Serving http://localhost:8000 (Ctrl-C to stop)"
