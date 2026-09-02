@@ -130,14 +130,34 @@ jobs:
           python-version: "3.12"
       - name: Install build dependencies
         run: pip install -r requirements-docs.txt
-      - name: Build documentation site
-        run: python3 scripts/build_docs.py --out site
+      - name: Build documentation site (/docs/)
+        run: python3 scripts/build_docs.py --out site/docs
+      - name: Build hero landing page (/)
+        run: python3 scripts/build_hero.py --out site
       - name: Verify expected pages were generated
         run: |
           set -euo pipefail
-          for f in index.html USAGE.html CONFIGURATION.html MODULES.html assets/style.css; do
-            test -s "site/$f" || { echo "missing site/$f"; exit 1; }
+          # Hero at the site root, generated guide under /docs/.
+          for f in index.html .nojekyll; do
+            test -e "site/$f" || { echo "missing site/$f"; exit 1; }
           done
+          for f in index.html USAGE.html CONFIGURATION.html MODULES.html assets/style.css; do
+            test -s "site/docs/$f" || { echo "missing site/docs/$f"; exit 1; }
+          done
+          # Every hero link must resolve to a file that was actually built.
+          python3 - <<'PY'
+          import pathlib, re, sys
+          root = pathlib.Path("site")
+          hero = (root / "index.html").read_text(encoding="utf-8")
+          missing = []
+          for href in sorted(set(re.findall(r'href="([^"#:]+)"', hero))):
+              target = root / (href + "index.html" if href.endswith("/") else href)
+              if not target.is_file():
+                  missing.append(href)
+          if missing:
+              sys.exit("hero links with no target: " + ", ".join(missing))
+          print("hero links OK")
+          PY
           # Fail if any relative Markdown link survived into the built HTML.
           if grep -rEo 'href="[^"]+\.md"' site/ | grep -v '://'; then
             echo "Un-rewritten .md link found in built site"; exit 1
