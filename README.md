@@ -1,11 +1,3 @@
-<div align="center">
-
-<img src="demo-assets/branding/goc-logo.png" alt="Generals of Chaos" width="220"><br>
-<sub><b>Prepared for Generals of Chaos</b> — Network &amp; Platform Engineering</sub>
-
-</div>
-
----
 
 # check_multi 2.0
 
