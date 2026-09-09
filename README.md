@@ -1,11 +1,3 @@
-<div align="center">
-
-<img src="demo-assets/branding/bofa-logo.png" alt="Bank of America" width="220"><br>
-<sub><b>Prepared for Bank of America</b> — Network &amp; Platform Engineering</sub>
-
-</div>
-
----
 
 # check_multi 2.0
 
