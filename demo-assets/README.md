@@ -1,7 +1,7 @@
 <div align="center">
 
-<img src="branding/bofa-logo.png" alt="Bank of America" width="200"><br>
-<sub><b>Bank of America</b> — Demo Asset Kit</sub>
+<img src="branding/goc-logo.png" alt="Generals of Chaos" width="200"><br>
+<sub><b>Generals of Chaos</b> — Demo Asset Kit</sub>
 
 </div>
 
@@ -18,7 +18,7 @@ demo-assets/
 ├── CONTACT_SHEET.html        # open this first — every screenshot, captioned, grouped
 ├── RUN_OF_SHOW.md            # rehearsable 8–10 min talk track (scene → command → expected → screenshot)
 ├── README.md                 # this file (setup + reproduction)
-├── branding/                 # Bank of America logo used in this kit's headers
+├── branding/                 # Generals of Chaos logo used in this kit's headers
 ├── png/                      # 18 feature screenshots (PNG, 1000–1560px wide — for slides)
 ├── svg/                      # same screenshots as SVG (scalable — for web/README embeds)
 ├── inventories/              # demo inventories (go / mixed / warn / invalid)

@@ -335,7 +335,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 STYLE_CSS = r"""
 :root{
   --bg:#ffffff; --bg-alt:#f6f8fb; --surface:#ffffff; --text:#1b2430;
-  --muted:#5b6572; --border:#e3e8ef; --accent:#e4002b; --accent-2:#c8102e;
+  --muted:#5b6572; --border:#e3e8ef; --accent:#1a5c4a; --accent-2:#c9a227;
   --code-bg:#f4f6f9; --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.06);
   --radius:12px; --nav-w:264px; --toc-w:220px; --maxw:820px;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -343,13 +343,13 @@ STYLE_CSS = r"""
 }
 :root[data-theme="dark"]{
   --bg:#0e1420; --bg-alt:#131b29; --surface:#151d2b; --text:#e6ebf2;
-  --muted:#9aa6b6; --border:#233045; --accent:#ff2d55; --accent-2:#ff5470;
+  --muted:#9aa6b6; --border:#233045; --accent:#3d9b7a; --accent-2:#d4af37;
   --code-bg:#0b111c; --shadow:0 1px 3px rgba(0,0,0,.4);
 }
 @media (prefers-color-scheme:dark){
   :root[data-theme="auto"]{
     --bg:#0e1420; --bg-alt:#131b29; --surface:#151d2b; --text:#e6ebf2;
-    --muted:#9aa6b6; --border:#233045; --accent:#ff2d55; --accent-2:#ff5470;
+    --muted:#9aa6b6; --border:#233045; --accent:#3d9b7a; --accent-2:#d4af37;
     --code-bg:#0b111c; --shadow:0 1px 3px rgba(0,0,0,.4);
   }
 }

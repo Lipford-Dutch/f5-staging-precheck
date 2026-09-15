@@ -26,7 +26,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Optional brand mark; the page renders correctly without it.
-LOGO_SRC = REPO_ROOT / "demo-assets" / "branding" / "bofa-logo.png"
+LOGO_SRC = REPO_ROOT / "demo-assets" / "branding" / "goc-logo.png"
+LOGO_DEST_NAME = "goc-logo.png"
 
 # Cards linking into the generated guide. Each entry is (title, blurb, href).
 GUIDE_LINKS: tuple[tuple[str, str, str], ...] = (
@@ -103,7 +104,7 @@ def render(py_version: str, sh_version: str, has_logo: bool) -> str:
         for title, body in FEATURES
     )
     logo = (
-        '<img class="brand-mark" src="assets/bofa-logo.png" alt="" width="150">\n      '
+        f'<img class="brand-mark" src="assets/{LOGO_DEST_NAME}" alt="Generals of Chaos" width="120">\n      '
         if has_logo
         else ""
     )
@@ -124,7 +125,7 @@ def render(py_version: str, sh_version: str, has_logo: bool) -> str:
 <style>
 :root{{
   --bg:#ffffff; --bg-alt:#f6f8fb; --surface:#ffffff; --text:#1b2430;
-  --muted:#5b6572; --border:#e3e8ef; --accent:#e4002b; --accent-2:#c8102e;
+  --muted:#5b6572; --border:#e3e8ef; --accent:#1a5c4a; --accent-2:#c9a227;
   --radius:12px; --maxw:1060px;
   --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.06);
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -133,7 +134,7 @@ def render(py_version: str, sh_version: str, has_logo: bool) -> str:
 @media (prefers-color-scheme:dark){{
   :root{{
     --bg:#0e1420; --bg-alt:#131b29; --surface:#151d2b; --text:#e6ebf2;
-    --muted:#9aa6b6; --border:#233045; --accent:#ff2d55; --accent-2:#ff5470;
+    --muted:#9aa6b6; --border:#233045; --accent:#3d9b7a; --accent-2:#d4af37;
     --shadow:0 1px 3px rgba(0,0,0,.4);
   }}
 }}
@@ -145,7 +146,7 @@ a:hover{{text-decoration:underline}}
 .wrap{{max-width:var(--maxw);margin:0 auto;padding:0 22px}}
 .hero{{padding:76px 0 60px;border-bottom:1px solid var(--border);
   background:linear-gradient(180deg,var(--bg-alt),var(--bg))}}
-.brand-mark{{display:block;margin-bottom:26px;height:auto}}
+.brand-mark{{display:block;margin-bottom:26px;height:auto;border-radius:50%}}
 h1{{font-size:clamp(2.1rem,4.6vw,3.2rem);line-height:1.12;margin:0 0 16px;letter-spacing:-.02em}}
 .tagline{{font-size:clamp(1.05rem,2vw,1.3rem);color:var(--muted);margin:0 0 26px;max-width:62ch}}
 .pills{{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px}}
@@ -156,7 +157,7 @@ h1{{font-size:clamp(2.1rem,4.6vw,3.2rem);line-height:1.12;margin:0 0 16px;letter
   border:1px solid transparent;transition:transform .06s ease}}
 .btn:active{{transform:translateY(1px)}}
 .btn-primary{{background:var(--accent);color:#fff}}
-.btn-primary:hover{{background:var(--accent-2);text-decoration:none}}
+.btn-primary:hover{{background:var(--accent-2);color:#0f241c;text-decoration:none}}
 .btn-ghost{{border-color:var(--border);color:var(--text);background:var(--surface)}}
 .btn-ghost:hover{{border-color:var(--accent);text-decoration:none}}
 section{{padding:58px 0}}
@@ -192,7 +193,7 @@ footer{{padding:34px 0;color:var(--muted);font-size:.88rem;border-top:1px solid 
     <p class="tagline">Read-only pre-upgrade and change-window readiness validation for
       F5&nbsp;BIG-IP. Every run ends in one auditable <strong>GO&nbsp;/&nbsp;NO-GO</strong>
       verdict, with the evidence behind it.</p>
-    <div class="pills">{py_badge}{sh_badge}<span class="pill">read-only</span><span class="pill">LTM &amp; GTM</span></div>
+    <div class="pills">{py_badge}{sh_badge}<span class="pill">read-only</span><span class="pill">LTM & GTM</span></div>
     <div class="cta">
       <a class="btn btn-primary" href="docs/QUICKSTART.html">Get started</a>
       <a class="btn btn-ghost" href="docs/">Documentation</a>
@@ -251,7 +252,7 @@ UPGRADE READINESS: <span class="nogo">NO-GO</span></pre>
 
 <footer>
   <div class="wrap">
-    f5-staging-precheck &mdash; internal use. Read-only tooling; it never modifies a device.
+    f5-staging-precheck &mdash; Generals of Chaos. Read-only tooling; it never modifies a device.
   </div>
 </footer>
 
@@ -272,7 +273,7 @@ def main() -> int:
     if has_logo:
         assets = out_dir / "assets"
         assets.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(LOGO_SRC, assets / "bofa-logo.png")
+        shutil.copyfile(LOGO_SRC, assets / LOGO_DEST_NAME)
 
     # Pages otherwise runs the artifact through Jekyll, which can drop paths that
     # begin with an underscore. The docs generator writes its own copy alongside

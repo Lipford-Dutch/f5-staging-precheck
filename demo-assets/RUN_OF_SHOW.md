@@ -1,7 +1,7 @@
 <div align="center">
 
-<img src="branding/bofa-logo.png" alt="Bank of America" width="200"><br>
-<sub><b>Bank of America</b> — Demo Run-of-Show</sub>
+<img src="branding/goc-logo.png" alt="Generals of Chaos" width="200"><br>
+<sub><b>Generals of Chaos</b> — Demo Run-of-Show</sub>
 
 </div>
 

@@ -6,13 +6,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+- Rebranded demo kit, hero landing page, and remaining copy to **Generals of
+  Chaos**. Replaced the previous customer logo with the Lipford-Dutch org
+  emblem (`goc-logo.png`) and switched accent colors to GOC teal/gold.
 
 ## [1.0.0-alpha] - 2026-08-11 — Official Alpha Release
 
 First official alpha release of the combined `f5-staging-precheck` toolkit
-(Bash `check_multi` + Python `bigip-precheck`), prepared for **Bank of
-America**. Everything below through phase B was already on `main`; this
+(Bash `check_multi` + Python `bigip-precheck`), prepared for **Generals of
+Chaos**. Everything below through phase B was already on `main`; this
 release adds a full QA hardening pass, the demo kit, and branding on top.
 
 ### Added
@@ -30,7 +33,7 @@ release adds a full QA hardening pass, the demo kit, and branding on top.
 - Demo asset kit: 18 captioned screenshots (PNG + SVG), a reproducible mock
   iControl REST server, an executive Excel report, a rehearsable run-of-show
   script, and an HTML contact sheet.
-- Bank of America branding on the README and demo materials.
+- Generals of Chaos branding on the README and demo materials.
 
 ### Changed
 - Repository housekeeping: cleared stray build/cache artifacts and widened
