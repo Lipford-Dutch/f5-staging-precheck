@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bigip-precheck"
-version = "0.1.0"
+version = "1.0.0a0"
 description = "Read-only pre-upgrade / change-window readiness validator for F5 BIG-IP LTM & GTM (iControl REST + SNMP)."
 readme = "src/bigip_precheck/README.md"
 requires-python = ">=3.11"
