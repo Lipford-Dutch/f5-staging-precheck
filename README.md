@@ -4,13 +4,13 @@
 **Enterprise Device Audit Framework**  
 Multi-function, parallel SSH-based audit tool for network appliances (primarily F5 BIG-IP).
 
-[![CI](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml/badge.svg)](https://github.com/willyd61/f5-staging-precheck/actions/workflows/ci.yml)
-[![Docs](https://github.com/willyd61/f5-staging-precheck/actions/workflows/docs.yml/badge.svg)](https://github.com/willyd61/f5-staging-precheck/actions/workflows/docs.yml)
+[![CI](https://github.com/Lipford-Dutch/f5-staging-precheck/actions/workflows/ci.yml/badge.svg)](https://github.com/Lipford-Dutch/f5-staging-precheck/actions/workflows/ci.yml)
+[![Docs](https://github.com/Lipford-Dutch/f5-staging-precheck/actions/workflows/docs.yml/badge.svg)](https://github.com/Lipford-Dutch/f5-staging-precheck/actions/workflows/docs.yml)
 [![Version](https://img.shields.io/badge/Version-2.0.0--alpha-orange)]()
 [![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)]()
 [![License](https://img.shields.io/badge/License-Internal-blue)]()
 
-📖 **Documentation site:** <https://willyd61.github.io/f5-staging-precheck/>
+📖 **Documentation site:** <https://lipford-dutch.github.io/f5-staging-precheck/>
 
 ---
 
@@ -66,7 +66,7 @@ It was completely redesigned from a legacy monolithic Bash script into a clean, 
 
 ```bash
 # Clone the repository
-git clone https://github.com/willyd61/f5-staging-precheck.git
+git clone https://github.com/Lipford-Dutch/f5-staging-precheck.git
 cd f5-staging-precheck
 
 # View help
@@ -84,7 +84,7 @@ cd f5-staging-precheck
 ## Documentation
 
 The full, styled documentation is published to
-**[GitHub Pages](https://willyd61.github.io/f5-staging-precheck/)** and built
+**[GitHub Pages](https://lipford-dutch.github.io/f5-staging-precheck/)** and built
 from the Markdown under [`docs/`](docs/):
 
 | Document | Description |
