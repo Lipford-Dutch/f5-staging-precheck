@@ -21,7 +21,7 @@ Bash 4+, OpenSSH. Optional: `yq` (YAML config), `python3` + `openpyxl` (Excel),
 **How do I add a new check?**
 Drop `lib/checks/<name>.sh` defining `run_check()`. It appears automatically in
 `--list-checks`, tab-completion and the CI smoke test. See
-[Modules](MODULES.md) and [CONTRIBUTING](https://github.com/willyd61/f5-staging-precheck/blob/main/CONTRIBUTING.md).
+[Modules](MODULES.md) and [CONTRIBUTING](https://github.com/Lipford-Dutch/f5-staging-precheck/blob/main/CONTRIBUTING.md).
 
 **How does parallelism work?**
 Up to `--threads` checks run concurrently; the tool throttles new jobs until a

@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 SITE_TITLE = "check_multi"
 SITE_TAGLINE = "Enterprise Device Audit Framework"
-REPO_URL = "https://github.com/willyd61/f5-staging-precheck"
+REPO_URL = "https://github.com/Lipford-Dutch/f5-staging-precheck"
 
 # Explicit ordering + friendly labels for known pages. Anything not listed is
 # appended alphabetically, so dropping a new Markdown file into docs/ "just

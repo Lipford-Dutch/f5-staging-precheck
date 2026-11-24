@@ -19,7 +19,7 @@ capturing real payloads to harden the offline fixtures.
 Install the tool in a virtualenv:
 
 ```bash
-git clone https://github.com/willyd61/f5-staging-precheck.git
+git clone https://github.com/Lipford-Dutch/f5-staging-precheck.git
 cd f5-staging-precheck
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e '.[dev]'
